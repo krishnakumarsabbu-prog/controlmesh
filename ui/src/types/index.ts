@@ -140,6 +140,26 @@ export interface AuditEvent {
   details?: Record<string, unknown>;
 }
 
+// ── Rollback ──────────────────────────────────────────────────────────────────
+
+export type RollbackStepStatus = 'pending' | 'running' | 'done' | 'failed';
+
+export interface RollbackStep {
+  id: string;
+  label: string;
+  description: string;
+  status: RollbackStepStatus;
+}
+
+export interface TopologySnapshot {
+  app_id: string;
+  source_qm: string;
+  target_qm: string;
+  captured_at: string;
+  queues: string[];
+  channels: string[];
+}
+
 // ── SSE events ────────────────────────────────────────────────────────────────
 
 export interface SSEMigrationEvent {

@@ -1,4 +1,4 @@
-import type { MigrationRecord, MigrationState, MigrationPlanStep, ValidationResult, ValidationSimResult, MigrationPlanResponse, TopologyChannel } from '../../types';
+import type { MigrationRecord, MigrationState, MigrationPlanStep, ValidationResult, ValidationSimResult, MigrationPlanResponse, TopologyChannel, RollbackStep, TopologySnapshot } from '../../types';
 import {
   MOCK_FLEET,
   MOCK_MIGRATIONS,
@@ -18,6 +18,12 @@ const migrations: Record<string, MigrationRecord> = Object.fromEntries(
 
 // Per-app plan step state for real-time step execution
 const migrationPlanSteps: Record<string, MigrationPlanStep[]> = {};
+
+// Pre-migration topology snapshots keyed by app_id
+const topologySnapshots: Record<string, TopologySnapshot> = {};
+
+// Per-app rollback steps for real-time rollback step execution
+const rollbackSteps: Record<string, RollbackStep[]> = {};
 
 const MIGRATION_STATES: MigrationState[] = [
   'SNAPSHOTTED',
@@ -56,20 +62,137 @@ function buildDefaultPlan(appId: string, sourceQm: string, targetQm: string): Mi
   ];
 }
 
+function buildRollbackSteps(sourceQm: string, targetQm: string): RollbackStep[] {
+  return [
+    {
+      id: 'revert-routing',
+      label: 'Reverting routing',
+      description: `Removing remote queue definitions and xmit queue from ${sourceQm}`,
+      status: 'pending',
+    },
+    {
+      id: 'stop-channels',
+      label: 'Stopping channels',
+      description: `Halting sender channel ${sourceQm} → ${targetQm}`,
+      status: 'pending',
+    },
+    {
+      id: 'restore-queues',
+      label: 'Restoring queues',
+      description: `Recreating local queue definitions on ${sourceQm} from snapshot`,
+      status: 'pending',
+    },
+    {
+      id: 'delete-target',
+      label: 'Cleaning target',
+      description: `Removing provisioned resources on ${targetQm}`,
+      status: 'pending',
+    },
+    {
+      id: 'reset-state',
+      label: 'Resetting state',
+      description: 'Verifying source topology matches pre-migration snapshot',
+      status: 'pending',
+    },
+  ];
+}
+
+function captureSnapshot(appId: string, sourceQm: string, targetQm: string): TopologySnapshot {
+  const sourceQueues = MOCK_QUEUES[sourceQm] ?? [];
+  const snapshot: TopologySnapshot = {
+    app_id: appId,
+    source_qm: sourceQm,
+    target_qm: targetQm,
+    captured_at: new Date().toISOString(),
+    queues: [...sourceQueues],
+    channels: [],
+  };
+  topologySnapshots[appId] = snapshot;
+  return snapshot;
+}
+
 // SSE simulation
 type SSECallback = (record: MigrationRecord) => void;
 type StepSSECallback = (appId: string, steps: MigrationPlanStep[]) => void;
+type RollbackStepSSECallback = (appId: string, steps: RollbackStep[]) => void;
 const sseListeners = new Set<SSECallback>();
 const stepListeners = new Set<StepSSECallback>();
+const rollbackStepListeners = new Set<RollbackStepSSECallback>();
 
 function notifyStepListeners(appId: string) {
   const steps = migrationPlanSteps[appId];
   if (steps) stepListeners.forEach((cb) => cb(appId, steps));
 }
 
+function notifyRollbackStepListeners(appId: string) {
+  const steps = rollbackSteps[appId];
+  if (steps) rollbackStepListeners.forEach((cb) => cb(appId, steps));
+}
+
+async function simulateRollbackProgress(appId: string): Promise<void> {
+  const steps = rollbackSteps[appId];
+  if (!steps) return;
+
+  const m = migrations[appId];
+  if (!m) return;
+
+  // Mark plan steps as failed if they were in progress
+  const planSteps = migrationPlanSteps[appId];
+  if (planSteps) {
+    for (let i = 0; i < planSteps.length; i++) {
+      if (planSteps[i].status === 'running' || planSteps[i].status === 'pending') {
+        planSteps[i] = { ...planSteps[i], status: planSteps[i].status === 'running' ? 'failed' : 'pending' };
+      }
+    }
+    notifyStepListeners(appId);
+  }
+
+  for (let i = 0; i < steps.length; i++) {
+    steps[i] = { ...steps[i], status: 'running' };
+    notifyRollbackStepListeners(appId);
+
+    await new Promise((r) => setTimeout(r, 1200));
+
+    steps[i] = { ...steps[i], status: 'done' };
+    notifyRollbackStepListeners(appId);
+  }
+
+  // Restore snapshot state
+  const snapshot = topologySnapshots[appId];
+  if (snapshot && MOCK_QUEUES[snapshot.source_qm]) {
+    MOCK_QUEUES[snapshot.source_qm] = [...snapshot.queues];
+  }
+
+  m.state = 'ROLLED_BACK';
+  m.completed_at = new Date().toISOString();
+  sseListeners.forEach((cb) => cb(m));
+}
+
+async function triggerAutoRollback(appId: string, errorMsg: string): Promise<void> {
+  const m = migrations[appId];
+  if (!m) return;
+
+  m.state = 'ROLLING_BACK';
+  m.error = errorMsg;
+  sseListeners.forEach((cb) => cb(m));
+
+  rollbackSteps[appId] = buildRollbackSteps(m.source_qm, m.target_qm);
+  notifyRollbackStepListeners(appId);
+
+  await simulateRollbackProgress(appId);
+}
+
 async function simulateMigrationProgress(appId: string) {
   const steps = migrationPlanSteps[appId];
   if (!steps) return;
+
+  // Simulate random validation failure ~25% of the time for non-APP1 apps
+  const shouldFail = appId !== 'APP1' && Math.random() < 0.25;
+  let failAtStep: number | null = null;
+  if (shouldFail) {
+    // Fail at step 5 or 6 (validation steps)
+    failAtStep = Math.random() < 0.5 ? 4 : 5;
+  }
 
   for (let i = 0; i < steps.length; i++) {
     // Mark current step as running
@@ -90,6 +213,24 @@ async function simulateMigrationProgress(appId: string) {
         ];
       }
       sseListeners.forEach((cb) => cb(m));
+    }
+
+    // Simulate failure at a validation step
+    if (failAtStep !== null && i === failAtStep) {
+      steps[i] = { ...steps[i], status: 'failed' };
+      notifyStepListeners(appId);
+
+      const m = migrations[appId];
+      if (m) {
+        m.validation_results = [
+          { phase: 'BASELINE', passed: true, latency_ms: 45, timestamp: Date.now() - 15000 },
+          { phase: 'POST_REWIRE', passed: false, latency_ms: 850, timestamp: Date.now() - 5000, details: 'Latency exceeded threshold (850ms > 500ms)' },
+        ];
+      }
+
+      await new Promise((r) => setTimeout(r, 800));
+      triggerAutoRollback(appId, 'Validation failed: latency exceeded threshold (850ms > 500ms)');
+      return;
     }
 
     // Wait 1 second per step
@@ -138,6 +279,10 @@ export const mockApi = {
 
   async executeMigration(appId: string, sourceQm: string, targetQm: string) {
     await delay(500);
+
+    // Capture topology snapshot before execution
+    captureSnapshot(appId, sourceQm, targetQm);
+
     migrations[appId] = {
       app_id: appId,
       state: 'SNAPSHOTTED',
@@ -147,6 +292,8 @@ export const mockApi = {
     };
     // Reset plan steps to pending
     migrationPlanSteps[appId] = buildDefaultPlan(appId, sourceQm, targetQm);
+    // Clear any previous rollback steps
+    delete rollbackSteps[appId];
     notifyStepListeners(appId);
     sseListeners.forEach((cb) => cb(migrations[appId]));
     simulateMigrationProgress(appId);
@@ -155,16 +302,18 @@ export const mockApi = {
   async rollbackMigration(appId: string) {
     await delay(500);
     const m = migrations[appId];
-    if (m) {
-      m.state = 'ROLLING_BACK';
-      sseListeners.forEach((cb) => cb(m));
-      setTimeout(() => {
-        m.state = 'ROLLED_BACK';
-        m.completed_at = new Date().toISOString();
-        m.error = 'Manually rolled back via UI';
-        sseListeners.forEach((cb) => cb(m));
-      }, 1500);
-    }
+    if (!m) return;
+
+    if (m.state === 'ROLLING_BACK' || m.state === 'ROLLED_BACK') return;
+
+    m.state = 'ROLLING_BACK';
+    m.error = m.error ?? 'Manually rolled back via UI';
+    sseListeners.forEach((cb) => cb(m));
+
+    rollbackSteps[appId] = buildRollbackSteps(m.source_qm, m.target_qm);
+    notifyRollbackStepListeners(appId);
+
+    simulateRollbackProgress(appId);
   },
 
   async getAuditLog(filters: { operation?: string; qm?: string; limit?: number }) {
@@ -246,6 +395,18 @@ export const mockApi = {
     return () => stepListeners.delete(wrapper);
   },
 
+  // Subscribe to real-time rollback step updates for a specific app
+  subscribeRollbackSteps(appId: string, callback: (steps: RollbackStep[]) => void): () => void {
+    const wrapper: RollbackStepSSECallback = (id, steps) => {
+      if (id === appId) callback(steps);
+    };
+    rollbackStepListeners.add(wrapper);
+    // Emit current steps immediately if available
+    const current = rollbackSteps[appId];
+    if (current) callback(current);
+    return () => rollbackStepListeners.delete(wrapper);
+  },
+
   async runValidationSimulation(): Promise<ValidationSimResult> {
     await delay(800);
     const sent = Math.floor(Math.random() * 101) + 100; // 100–200
@@ -257,6 +418,14 @@ export const mockApi = {
 
   getPlanSteps(appId: string): MigrationPlanStep[] | null {
     return migrationPlanSteps[appId] ?? null;
+  },
+
+  getRollbackSteps(appId: string): RollbackStep[] | null {
+    return rollbackSteps[appId] ?? null;
+  },
+
+  getSnapshot(appId: string): TopologySnapshot | null {
+    return topologySnapshots[appId] ?? null;
   },
 
   // Returns queues with type info, reflecting current migration state for a QM
