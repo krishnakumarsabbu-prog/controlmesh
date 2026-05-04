@@ -1,0 +1,12 @@
+# Deny all ingress and egress by default.
+# Subsequent policies open specific paths.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-all
+  namespace: mq-hackathon
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress

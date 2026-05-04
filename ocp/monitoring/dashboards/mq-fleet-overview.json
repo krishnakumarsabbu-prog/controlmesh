@@ -1,0 +1,57 @@
+{
+  "title": "MQ Fleet Overview",
+  "uid": "mq-fleet-overview",
+  "tags": ["mq", "fleet"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Queue Depth",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "targets": [
+        {
+          "expr": "ibmmq_queue_depth{namespace=\"mq-hackathon\"}",
+          "legendFormat": "{{qmgr}} / {{queue}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Channel Status",
+      "type": "stat",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [
+        {
+          "expr": "ibmmq_channel_status{namespace=\"mq-hackathon\"}",
+          "legendFormat": "{{channel}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Message Rate (put/s)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "targets": [
+        {
+          "expr": "rate(ibmmq_queue_put_total{namespace=\"mq-hackathon\"}[1m])",
+          "legendFormat": "{{qmgr}} / {{queue}} put/s"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Message Rate (get/s)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "targets": [
+        {
+          "expr": "rate(ibmmq_queue_get_total{namespace=\"mq-hackathon\"}[1m])",
+          "legendFormat": "{{qmgr}} / {{queue}} get/s"
+        }
+      ]
+    }
+  ]
+}

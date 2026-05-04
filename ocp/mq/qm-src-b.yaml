@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qm-src-b
+  namespace: mq-hackathon
+  labels:
+    app: mq-fleet
+    qm-role: source
+    qm-name: QM.SRC.B
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: qm-src-b
+  template:
+    metadata:
+      labels:
+        app: qm-src-b
+        qm-role: source
+        qm-name: QM.SRC.B
+    spec:
+      serviceAccountName: mq-fleet-manager
+      securityContext:
+        runAsNonRoot: true
+      containers:
+      - name: qm
+        image: ibm-messaging/mq-container:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: MQ_QMGR_NAME
+          value: "QMSRCB"
+        - name: LICENSE
+          value: "accept"
+        - name: MQ_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mq-admin-creds
+              key: password
+        ports:
+        - containerPort: 1414
+          name: mq
+          protocol: TCP
+        - containerPort: 9443
+          name: rest-admin
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+        livenessProbe:
+          httpGet:
+            path: /ibmmq/rest/v2/admin/qmgr
+            port: 9443
+            scheme: HTTPS
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ibmmq/rest/v2/admin/qmgr
+            port: 9443
+            scheme: HTTPS
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qm-src-b-svc
+  namespace: mq-hackathon
+  labels:
+    app: mq-fleet
+    qm-role: source
+    qm-name: QM.SRC.B
+spec:
+  selector:
+    app: qm-src-b
+  ports:
+  - name: mq
+    port: 1414
+    targetPort: 1414
+    protocol: TCP
+  - name: rest-admin
+    port: 9443
+    targetPort: 9443
+    protocol: TCP

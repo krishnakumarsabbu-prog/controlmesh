@@ -1,0 +1,94 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: mq-hackathon-pipeline
+  namespace: mq-hackathon
+spec:
+  params:
+  - name: git-revision
+    type: string
+    description: Git commit SHA or branch name to build
+  - name: image-registry
+    type: string
+    description: Container image registry (e.g. image-registry.openshift-image-registry.svc:5000/mq-hackathon)
+    default: image-registry.openshift-image-registry.svc:5000/mq-hackathon
+
+  workspaces:
+  - name: source
+  - name: docker-credentials
+
+  tasks:
+  - name: clone
+    taskRef:
+      name: git-clone
+      kind: ClusterTask
+    workspaces:
+    - name: output
+      workspace: source
+    params:
+    - name: revision
+      value: $(params.git-revision)
+
+  - name: lint
+    taskRef:
+      name: pylint-task
+    runAfter: [clone]
+    workspaces:
+    - name: source
+      workspace: source
+
+  - name: unit-test
+    taskRef:
+      name: pytest-task
+    runAfter: [lint]
+    workspaces:
+    - name: source
+      workspace: source
+
+  - name: build-bcl
+    taskRef:
+      name: buildah
+      kind: ClusterTask
+    runAfter: [unit-test]
+    workspaces:
+    - name: source
+      workspace: source
+    - name: dockerconfig
+      workspace: docker-credentials
+    params:
+    - name: IMAGE
+      value: $(params.image-registry)/bcl-gateway:$(params.git-revision)
+    - name: DOCKERFILE
+      value: ./Dockerfile.bcl
+
+  - name: build-ui
+    taskRef:
+      name: node-build-task
+    runAfter: [unit-test]
+    workspaces:
+    - name: source
+      workspace: source
+    params:
+    - name: IMAGE
+      value: $(params.image-registry)/mq-ui:$(params.git-revision)
+
+  - name: deploy-staging
+    taskRef:
+      name: oc-apply-task
+    runAfter: [build-bcl, build-ui]
+    workspaces:
+    - name: source
+      workspace: source
+    params:
+    - name: manifest-dir
+      value: ocp/
+    - name: namespace
+      value: mq-hackathon
+
+  - name: integration-test
+    taskRef:
+      name: pytest-integration-task
+    runAfter: [deploy-staging]
+    workspaces:
+    - name: source
+      workspace: source

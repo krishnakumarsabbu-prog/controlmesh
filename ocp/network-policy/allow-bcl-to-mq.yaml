@@ -1,0 +1,22 @@
+# Allow bcl-gateway pods to reach MQ REST admin (9443) and listener (1414).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-bcl-to-mq
+  namespace: mq-hackathon
+spec:
+  podSelector:
+    matchLabels:
+      app: mq-fleet
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: bcl-gateway
+    ports:
+    - port: 1414
+      protocol: TCP
+    - port: 9443
+      protocol: TCP

@@ -1,0 +1,61 @@
+{
+  "title": "Agent Mesh",
+  "uid": "agent-mesh",
+  "tags": ["adk", "agents"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Tool Call Duration p99 (ms)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, rate(adk_tool_call_duration_seconds_bucket[5m])) * 1000",
+          "legendFormat": "{{tool}} p99"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Tool Call Success / Failure Rate",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [
+        {
+          "expr": "rate(adk_tool_calls_total{result=\"success\"}[1m])",
+          "legendFormat": "success / s"
+        },
+        {
+          "expr": "rate(adk_tool_calls_total{result=\"failure\"}[1m])",
+          "legendFormat": "failure / s"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Active Agents",
+      "type": "stat",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "targets": [
+        {
+          "expr": "adk_active_agents",
+          "legendFormat": "{{agent_type}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "LLM Token Usage / min",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "targets": [
+        {
+          "expr": "rate(adk_llm_tokens_total[1m]) * 60",
+          "legendFormat": "{{model}} tokens/min"
+        }
+      ]
+    }
+  ]
+}

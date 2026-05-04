@@ -1,0 +1,104 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: pylint-task
+  namespace: mq-hackathon
+spec:
+  workspaces:
+  - name: source
+  steps:
+  - name: lint
+    image: python:3.11-slim
+    workingDir: $(workspaces.source.path)
+    script: |
+      #!/bin/bash
+      set -e
+      pip install --quiet pylint
+      pylint db/ --fail-under=8.0
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: pytest-task
+  namespace: mq-hackathon
+spec:
+  workspaces:
+  - name: source
+  steps:
+  - name: test
+    image: python:3.11-slim
+    workingDir: $(workspaces.source.path)
+    script: |
+      #!/bin/bash
+      set -e
+      pip install --quiet -r requirements.txt pytest pytest-cov
+      pytest tests/unit/ -v --tb=short --cov=db --cov-report=term-missing
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: node-build-task
+  namespace: mq-hackathon
+spec:
+  params:
+  - name: IMAGE
+    type: string
+  workspaces:
+  - name: source
+  steps:
+  - name: build
+    image: node:20-alpine
+    workingDir: $(workspaces.source.path)/ui
+    script: |
+      #!/bin/sh
+      set -e
+      npm ci
+      npm run build
+  - name: package
+    image: gcr.io/kaniko-project/executor:latest
+    args:
+    - --dockerfile=ui/Dockerfile
+    - --destination=$(params.IMAGE)
+    - --context=$(workspaces.source.path)
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: oc-apply-task
+  namespace: mq-hackathon
+spec:
+  params:
+  - name: manifest-dir
+    type: string
+    default: ocp/
+  - name: namespace
+    type: string
+    default: mq-hackathon
+  workspaces:
+  - name: source
+  steps:
+  - name: apply
+    image: image-registry.openshift-image-registry.svc:5000/openshift/cli:latest
+    workingDir: $(workspaces.source.path)
+    script: |
+      #!/bin/bash
+      set -e
+      oc apply -f $(params.manifest-dir) -n $(params.namespace) --recursive
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: pytest-integration-task
+  namespace: mq-hackathon
+spec:
+  workspaces:
+  - name: source
+  steps:
+  - name: integration-test
+    image: python:3.11-slim
+    workingDir: $(workspaces.source.path)
+    script: |
+      #!/bin/bash
+      set -e
+      pip install --quiet -r requirements.txt pytest
+      pytest tests/integration/ -v --tb=short -m "not slow"

@@ -1,0 +1,67 @@
+# Tekton EventListener + TriggerTemplate: fires pipeline on every push to main.
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerTemplate
+metadata:
+  name: mq-hackathon-trigger-template
+  namespace: mq-hackathon
+spec:
+  params:
+  - name: git-revision
+    description: The git revision
+  resourcetemplates:
+  - apiVersion: tekton.dev/v1beta1
+    kind: PipelineRun
+    metadata:
+      generateName: mq-hackathon-run-
+      namespace: mq-hackathon
+    spec:
+      pipelineRef:
+        name: mq-hackathon-pipeline
+      params:
+      - name: git-revision
+        value: $(tt.params.git-revision)
+      workspaces:
+      - name: source
+        volumeClaimTemplate:
+          spec:
+            accessModes: [ReadWriteOnce]
+            resources:
+              requests:
+                storage: 1Gi
+      - name: docker-credentials
+        secret:
+          secretName: registry-credentials
+---
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerBinding
+metadata:
+  name: github-push-binding
+  namespace: mq-hackathon
+spec:
+  params:
+  - name: git-revision
+    value: $(body.after)
+---
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: EventListener
+metadata:
+  name: github-push-listener
+  namespace: mq-hackathon
+spec:
+  serviceAccountName: mq-fleet-manager
+  triggers:
+  - name: github-push
+    bindings:
+    - ref: github-push-binding
+    template:
+      ref: mq-hackathon-trigger-template
+    interceptors:
+    - ref:
+        name: github
+      params:
+      - name: eventTypes
+        value: [push]
+      - name: secretRef
+        value:
+          secretName: github-webhook-secret
+          secretKey: secret

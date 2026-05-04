@@ -1,0 +1,57 @@
+# Bind mq-dev to the dev group — replace subjects as needed.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mq-dev-binding
+  namespace: mq-hackathon
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: mq-dev
+subjects:
+- kind: Group
+  name: mq-developers
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mq-ops-binding
+  namespace: mq-hackathon
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: mq-ops
+subjects:
+- kind: Group
+  name: mq-operators
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mq-readonly-binding
+  namespace: mq-hackathon
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: mq-readonly
+subjects:
+- kind: Group
+  name: mq-viewers
+  apiGroup: rbac.authorization.k8s.io
+---
+# Allow mq-fleet-manager SA to manage pod lifecycle within the namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mq-fleet-manager-binding
+  namespace: mq-hackathon
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: mq-ops
+subjects:
+- kind: ServiceAccount
+  name: mq-fleet-manager
+  namespace: mq-hackathon

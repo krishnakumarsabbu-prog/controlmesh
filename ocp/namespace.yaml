@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mq-hackathon
+  labels:
+    app.kubernetes.io/part-of: mq-migration
+    app.kubernetes.io/managed-by: phase1-bootstrap
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bcl-gateway
+  namespace: mq-hackathon
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mq-fleet-manager
+  namespace: mq-hackathon

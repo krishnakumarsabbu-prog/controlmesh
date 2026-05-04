@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-provision
+  namespace: mq-hackathon
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+    - name: mq-hackathon
+      orgId: 1
+      folder: MQ Hackathon
+      type: file
+      disableDeletion: false
+      updateIntervalSeconds: 30
+      options:
+        path: /var/lib/grafana/dashboards

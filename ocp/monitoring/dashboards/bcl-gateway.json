@@ -1,0 +1,57 @@
+{
+  "title": "BCL Gateway",
+  "uid": "bcl-gateway",
+  "tags": ["bcl", "gateway"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request Rate (req/s)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "targets": [
+        {
+          "expr": "rate(http_requests_total{job=\"bcl-gateway\"}[1m])",
+          "legendFormat": "{{method}} {{status}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "p99 Latency (ms)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{job=\"bcl-gateway\"}[5m])) * 1000",
+          "legendFormat": "p99 latency"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Policy Violations",
+      "type": "stat",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "targets": [
+        {
+          "expr": "increase(bcl_policy_violations_total{job=\"bcl-gateway\"}[1h])",
+          "legendFormat": "violations / hr"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Error Rate",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "targets": [
+        {
+          "expr": "rate(http_requests_total{job=\"bcl-gateway\",status=~\"5..\"}[1m])",
+          "legendFormat": "5xx / s"
+        }
+      ]
+    }
+  ]
+}

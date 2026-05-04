@@ -1,0 +1,45 @@
+{
+  "title": "Migration Progress",
+  "uid": "migration-progress",
+  "tags": ["migration", "state-machine"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "panels": [
+    {
+      "id": 1,
+      "title": "State Machine Transitions / hr",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 0},
+      "targets": [
+        {
+          "expr": "increase(bcl_migration_phase_transitions_total[1h])",
+          "legendFormat": "{{app_id}} → {{phase}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Apps per Phase",
+      "type": "piechart",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "targets": [
+        {
+          "expr": "bcl_migration_apps_by_phase",
+          "legendFormat": "{{phase}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Completed Migrations (total)",
+      "type": "stat",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "targets": [
+        {
+          "expr": "bcl_migration_completed_total",
+          "legendFormat": "completed"
+        }
+      ]
+    }
+  ]
+}
