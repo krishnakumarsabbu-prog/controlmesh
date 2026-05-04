@@ -4,6 +4,7 @@ import TopBar from './TopBar';
 import FleetStatusMini from './FleetStatusMini';
 import FloatingAssistant from '../shared/FloatingAssistant';
 import { useAssistantAgent } from '../../hooks/useAssistantAgent';
+import { useAppStore } from '../../store/appStore';
 
 const NAV = [
   { to: '/dashboard',           icon: LayoutDashboard, label: 'Dashboard'       },

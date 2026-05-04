@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Bell, ShieldCheck, ShieldAlert, Activity, Settings } from 'lucide-react';
 import { useFleet } from '../../hooks/useFleet';
-import { useAppStore } from '../store/appStore';
+import { useAppStore } from '../../store/appStore';
 
 interface TopBarProps {
   pageTitle?: string;
