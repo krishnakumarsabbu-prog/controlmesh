@@ -37,7 +37,42 @@ app.mount("/metrics", metrics_app)
 @app.on_event("startup")
 async def startup():
     bootstrap_registry()
+    await _recover_in_progress_migrations()
     log.info("bcl_gateway_started", version="2.0.0")
+
+
+async def _recover_in_progress_migrations():
+    """On startup, roll back any migrations stuck in transitional states from a prior crash."""
+    import asyncio
+    from bcl.state.redis_store import RedisStore
+    from bcl.state.state_machine import MigrationStateMachine
+    from bcl.models.migration import MigrationState, IN_PROGRESS_STATES
+
+    store = RedisStore()
+    sm = MigrationStateMachine(store)
+
+    try:
+        records = await store.list_migration_records()
+    except Exception as exc:
+        log.warning("crash_recovery_skipped", error=str(exc))
+        return
+
+    for record in records:
+        if record.state in IN_PROGRESS_STATES:
+            log.warning(
+                "crash_recovery_rolling_back",
+                app_id=record.app_id,
+                stuck_state=record.state,
+            )
+            try:
+                await sm.transition(
+                    record.app_id,
+                    MigrationState.ROLLING_BACK,
+                    {"error": "BCL restarted during migration — auto-rollback"},
+                )
+                await sm.transition(record.app_id, MigrationState.ROLLED_BACK)
+            except Exception as exc:
+                log.error("crash_recovery_failed", app_id=record.app_id, error=str(exc))
 
 
 @app.middleware("http")

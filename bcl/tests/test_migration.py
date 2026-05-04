@@ -1,76 +1,198 @@
 """
-Tests for migration state machine integration.
+Tests for Phase 3 migration state machine.
 Run: pytest bcl/tests/test_migration.py -v
-
-Uses the Phase-1 SQLite + Redis (in-memory) db layer.
-Redis must be running on localhost:6379 or REDIS_HOST/REDIS_PORT must be set.
 """
 import sys
 import os
 import pytest
+from unittest.mock import AsyncMock, MagicMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
 
-
-def test_migration_init_and_advance():
-    from db.manager import get_manager
-    mgr = get_manager()
-
-    app_id = "test-app-migration-001"
-    mgr.init_migration(app_id)
-
-    state = mgr.get_migration_state(app_id)
-    assert state is not None
-    assert state["phase"] == "pending"
-
-    mgr.advance_phase(app_id, "topology_snapshot", checkpoint={"source_qm": "QM.SRC.A"})
-    state = mgr.get_migration_state(app_id)
-    assert state["phase"] == "topology_snapshot"
+from bcl.models.migration import (
+    MigrationRecord,
+    MigrationState,
+    TRANSITIONS,
+    IN_PROGRESS_STATES,
+)
 
 
-def test_migration_idempotent_init():
-    from db.manager import get_manager
-    mgr = get_manager()
+# ── Model tests ───────────────────────────────────────────────────────────────
 
-    app_id = "test-app-idempotent-002"
-    mgr.init_migration(app_id)
-    mgr.init_migration(app_id)  # second call must not raise
-
-    state = mgr.get_migration_state(app_id)
-    assert state["app_id"] == app_id
+def test_default_state_is_idle():
+    record = MigrationRecord(app_id="APP1")
+    assert record.state == MigrationState.IDLE
 
 
-def test_migration_full_lifecycle():
-    from db.manager import get_manager
-    mgr = get_manager()
+def test_transitions_table_complete():
+    for state in MigrationState:
+        assert state in TRANSITIONS, f"{state} missing from TRANSITIONS"
 
-    app_id = "test-app-lifecycle-003"
-    phases = [
-        ("topology_snapshot", {"source_qm": "QM.SRC.A", "queues": ["Q.PAY.IN.LOCAL"]}),
-        ("traffic_mirror", {"mirrored": True}),
-        ("shadow_mode", None),
-        ("cutover", {"traffic": "target"}),
-        ("completed", None),
+
+def test_in_progress_states_are_subset_of_transitions():
+    for state in IN_PROGRESS_STATES:
+        assert state in TRANSITIONS
+
+
+def test_migrated_is_terminal():
+    assert TRANSITIONS[MigrationState.MIGRATED] == []
+
+
+# ── State machine tests ───────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_get_creates_idle_record_when_missing():
+    from bcl.state.state_machine import MigrationStateMachine
+
+    store = AsyncMock()
+    store.get_migration_record.return_value = None
+    store.save_migration_record.return_value = None
+    store.publish_sse_event.return_value = None
+
+    sm = MigrationStateMachine(store)
+    record = await sm.get("APP1")
+
+    assert record.app_id == "APP1"
+    assert record.state == MigrationState.IDLE
+    store.save_migration_record.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_valid_transition_idle_to_snapshotted():
+    from bcl.state.state_machine import MigrationStateMachine
+
+    store = AsyncMock()
+    store.get_migration_record.return_value = MigrationRecord(app_id="APP1")
+    store.save_migration_record.return_value = None
+    store.publish_sse_event.return_value = None
+
+    sm = MigrationStateMachine(store)
+    result = await sm.transition("APP1", MigrationState.SNAPSHOTTED)
+
+    assert result.state == MigrationState.SNAPSHOTTED
+    assert result.started_at is not None
+    assert len(result.history) == 1
+    assert result.history[0]["from_state"] == MigrationState.IDLE
+
+
+@pytest.mark.asyncio
+async def test_invalid_transition_raises_409():
+    from bcl.state.state_machine import MigrationStateMachine
+    from fastapi import HTTPException
+
+    store = AsyncMock()
+    store.get_migration_record.return_value = MigrationRecord(app_id="APP1")
+    store.save_migration_record.return_value = None
+
+    sm = MigrationStateMachine(store)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await sm.transition("APP1", MigrationState.MIGRATED)
+
+    assert exc_info.value.status_code == 409
+    assert exc_info.value.detail["error"] == "INVALID_TRANSITION"
+
+
+@pytest.mark.asyncio
+async def test_rollback_from_validating():
+    from bcl.state.state_machine import MigrationStateMachine
+
+    store = AsyncMock()
+    store.get_migration_record.return_value = MigrationRecord(
+        app_id="APP1", state=MigrationState.VALIDATING
+    )
+    store.save_migration_record.return_value = None
+    store.publish_sse_event.return_value = None
+
+    sm = MigrationStateMachine(store)
+    result = await sm.transition(
+        "APP1", MigrationState.ROLLING_BACK, {"error": "validation failed"}
+    )
+
+    assert result.state == MigrationState.ROLLING_BACK
+    assert result.error == "validation failed"
+
+
+@pytest.mark.asyncio
+async def test_metadata_persisted_on_transition():
+    from bcl.state.state_machine import MigrationStateMachine
+
+    store = AsyncMock()
+    store.get_migration_record.return_value = MigrationRecord(app_id="APP1")
+    store.save_migration_record.return_value = None
+    store.publish_sse_event.return_value = None
+
+    sm = MigrationStateMachine(store)
+    result = await sm.transition(
+        "APP1",
+        MigrationState.SNAPSHOTTED,
+        {"snapshot_key": "snapshot:APP1:pre_migration:12345", "source_qm": "QM.SRC.A"},
+    )
+
+    assert result.snapshot_key == "snapshot:APP1:pre_migration:12345"
+    assert result.source_qm == "QM.SRC.A"
+
+
+@pytest.mark.asyncio
+async def test_sse_event_published_on_transition():
+    from bcl.state.state_machine import MigrationStateMachine
+
+    store = AsyncMock()
+    store.get_migration_record.return_value = MigrationRecord(app_id="APP2")
+    store.save_migration_record.return_value = None
+    store.publish_sse_event.return_value = None
+
+    sm = MigrationStateMachine(store)
+    await sm.transition("APP2", MigrationState.SNAPSHOTTED)
+
+    store.publish_sse_event.assert_called_once()
+    event = store.publish_sse_event.call_args[0][0]
+    assert event["event"] == "state_change"
+    assert event["app_id"] == "APP2"
+    assert event["state"] == MigrationState.SNAPSHOTTED.value
+
+
+@pytest.mark.asyncio
+async def test_full_happy_path_transition_chain():
+    from bcl.state.state_machine import MigrationStateMachine
+
+    store = AsyncMock()
+    store.save_migration_record.return_value = None
+    store.publish_sse_event.return_value = None
+
+    record = MigrationRecord(app_id="APP3")
+
+    def side_effect(app_id):
+        return record
+
+    store.get_migration_record.side_effect = side_effect
+
+    sm = MigrationStateMachine(store)
+
+    states = [
+        MigrationState.SNAPSHOTTED,
+        MigrationState.PROVISIONING_TARGET,
+        MigrationState.REWIRING,
+        MigrationState.VALIDATING,
+        MigrationState.MIGRATED,
     ]
 
-    mgr.init_migration(app_id)
-    for phase, checkpoint in phases:
-        mgr.advance_phase(app_id, phase, checkpoint=checkpoint)
-
-    state = mgr.get_migration_state(app_id)
-    assert state["phase"] == "completed"
-    assert state["completed_at"] is not None
+    for state in states:
+        record = await sm.transition("APP3", state)
+        assert record.state == state
 
 
-def test_audit_log_captures_migration_events():
-    from db.manager import get_manager
-    mgr = get_manager()
+@pytest.mark.asyncio
+async def test_rolled_back_can_retry_idle():
+    from bcl.state.state_machine import MigrationStateMachine
 
-    app_id = "test-app-audit-004"
-    mgr.init_migration(app_id)
-    mgr.advance_phase(app_id, "topology_snapshot")
+    store = AsyncMock()
+    store.get_migration_record.return_value = MigrationRecord(
+        app_id="APP4", state=MigrationState.ROLLED_BACK
+    )
+    store.save_migration_record.return_value = None
+    store.publish_sse_event.return_value = None
 
-    audit = mgr.get_audit_log(entity_id=app_id, limit=10)
-    assert len(audit) >= 1
-    actions = [e["action"] for e in audit]
-    assert "phase_advance" in actions
+    sm = MigrationStateMachine(store)
+    result = await sm.transition("APP4", MigrationState.IDLE)
+    assert result.state == MigrationState.IDLE
