@@ -86,21 +86,21 @@ export default function AppMigrationCard({ app, record, onMigrate, onRollback, i
     return unsubscribe;
   }, [app.id, isRollingBack]);
 
-  const borderClass =
-    state === 'ROLLING_BACK'  ? 'border-red-800 shadow-md shadow-red-900/20' :
-    state === 'ROLLED_BACK'   ? 'border-orange-800' :
-    isAutonomousTarget        ? 'border-emerald-600 shadow-md shadow-emerald-900/30' :
-    isActive                  ? 'border-amber-800 shadow-md shadow-amber-900/20' :
-    state === 'MIGRATED'      ? 'border-emerald-800' :
-    'border-surface-border';
+  const borderStyle: React.CSSProperties =
+    state === 'ROLLING_BACK'  ? { borderColor: 'rgba(239,68,68,0.5)',   boxShadow: '0 0 20px rgba(239,68,68,0.1)'   } :
+    state === 'ROLLED_BACK'   ? { borderColor: 'rgba(249,115,22,0.4)'                                               } :
+    isAutonomousTarget        ? { borderColor: 'rgba(34,197,94,0.5)',   boxShadow: '0 0 20px rgba(34,197,94,0.12)' } :
+    isActive                  ? { borderColor: 'rgba(245,158,11,0.4)',  boxShadow: '0 0 16px rgba(245,158,11,0.08)'} :
+    state === 'MIGRATED'      ? { borderColor: 'rgba(34,197,94,0.3)'                                               } :
+    { borderColor: '#1E2A3D' };
 
-  const avatarClass =
-    state === 'MIGRATED'     ? 'bg-emerald-900/40 text-emerald-300' :
-    state === 'IDLE'         ? 'bg-surface-muted text-text-secondary' :
-    state === 'ROLLING_BACK' ? 'bg-red-900/40 text-red-300'         :
-    state === 'ROLLED_BACK'  ? 'bg-orange-900/40 text-orange-300'   :
-    isActive                 ? 'bg-amber-900/40 text-amber-300'     :
-    'bg-surface-muted text-text-secondary';
+  const avatarStyle: React.CSSProperties =
+    state === 'MIGRATED'     ? { background: 'rgba(34,197,94,0.12)',  color: '#22C55E'  } :
+    state === 'IDLE'         ? { background: 'rgba(42,53,80,0.6)',    color: '#9CA3AF'  } :
+    state === 'ROLLING_BACK' ? { background: 'rgba(239,68,68,0.12)', color: '#EF4444'  } :
+    state === 'ROLLED_BACK'  ? { background: 'rgba(249,115,22,0.12)',color: '#F97316'  } :
+    isActive                 ? { background: 'rgba(245,158,11,0.12)', color: '#F59E0B'  } :
+    { background: 'rgba(42,53,80,0.6)', color: '#9CA3AF' };
 
   const toggleStepper = () => {
     setExpandedView((v) => v === 'stepper' ? null : 'stepper');
@@ -144,7 +144,11 @@ export default function AppMigrationCard({ app, record, onMigrate, onRollback, i
     <motion.div
       layout
       data-testid={`migration-row-${app.id}`}
-      className={`rounded-xl border bg-surface-card overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover ${borderClass}`}
+      className="rounded-xl border bg-surface-card overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover"
+      style={{
+        ...borderStyle,
+        backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0) 100%)',
+      }}
     >
       {/* Rollback in-progress banner */}
       <AnimatePresence>
@@ -189,7 +193,7 @@ export default function AppMigrationCard({ app, record, onMigrate, onRollback, i
 
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3">
-        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 font-bold text-sm ${avatarClass}`}>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 font-bold text-sm border border-white/5" style={avatarStyle}>
           {app.id.replace('APP', '')}
         </div>
         <div className="flex-1 min-w-0">
@@ -204,7 +208,11 @@ export default function AppMigrationCard({ app, record, onMigrate, onRollback, i
             <button
               onClick={onMigrate}
               disabled={isLoading}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-accent-blue hover:bg-accent-blue-hover text-white rounded-lg text-xs font-medium transition-all duration-150 active:scale-95 disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-white rounded-lg text-xs font-medium transition-all duration-150 active:scale-[0.97] disabled:opacity-50"
+              style={{
+                background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
+                boxShadow: '0 2px 8px rgba(99,102,241,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
+              }}
             >
               <Play className="w-3 h-3" />
               Migrate

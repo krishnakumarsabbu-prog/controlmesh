@@ -8,6 +8,7 @@ import ReactFlow, {
   type Node,
   type Edge,
   BackgroundVariant,
+  MarkerType,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -121,7 +122,7 @@ function buildLayout(
           target: qm.name,
           type: 'default',
           style: { stroke: '#93c5fd', strokeWidth: 1.5 },
-          markerEnd: { type: 'arrowclosed' as const, color: '#93c5fd' },
+          markerEnd: { type: MarkerType.ArrowClosed, color: '#93c5fd' },
         });
       });
 
@@ -150,7 +151,7 @@ function buildLayout(
             strokeWidth: 1.5,
           },
           markerEnd: {
-            type: 'arrowclosed' as const,
+            type: MarkerType.ArrowClosed,
             color: q.type === 'remote' ? '#fbbf24' : q.type === 'xmit' ? '#7dd3fc' : '#cbd5e1',
           },
         });
@@ -203,7 +204,7 @@ function buildLayout(
           target: nodeId,
           type: 'default',
           style: { stroke: '#cbd5e1', strokeWidth: 1.5 },
-          markerEnd: { type: 'arrowclosed' as const, color: '#cbd5e1' },
+          markerEnd: { type: MarkerType.ArrowClosed, color: '#cbd5e1' },
         });
       });
     });
