@@ -306,7 +306,7 @@ export default function TopologyCanvas({
   }, []);
 
   return (
-    <div className="relative w-full h-full" style={{ background: '#080b14' }}>
+    <div className="relative w-full h-full bg-surface-base">
       <ReactFlow
         nodes={displayNodes}
         edges={displayEdges}

@@ -27,13 +27,13 @@ export default {
           dim:     'var(--accent-glow)',
           glow:    'var(--accent-glow)',
         },
-        // Legacy accent aliases for backward compat
+        // Legacy accent aliases mapped to CSS vars where possible
         accent: {
-          blue:         '#6366F1',
-          'blue-hover': '#4F46E5',
-          emerald:      '#22C55E',
-          amber:        '#F59E0B',
-          red:          '#EF4444',
+          blue:         'var(--accent-primary)',
+          'blue-hover': 'var(--accent-secondary)',
+          emerald:      'var(--accent-success)',
+          amber:        'var(--accent-warning)',
+          red:          'var(--accent-danger)',
           cyan:         '#06B6D4',
         },
         // Semantic color ramps

@@ -5,8 +5,8 @@ import type { ValidationResult } from '../../types';
 export default function ValidationBadge({ result }: { result?: ValidationResult }) {
   if (!result) {
     return (
-      <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100">
-        <Clock className="w-3.5 h-3.5 text-slate-300" />
+      <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-surface-muted">
+        <Clock className="w-3.5 h-3.5 text-text-muted" />
       </div>
     );
   }
@@ -17,17 +17,21 @@ export default function ValidationBadge({ result }: { result?: ValidationResult 
       animate={{ scale: 1, opacity: 1 }}
       className="inline-flex flex-col items-center gap-0.5"
     >
-      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-        result.passed ? 'bg-emerald-100' : 'bg-red-100'
-      }`}>
+      <div
+        className="w-8 h-8 rounded-full flex items-center justify-center"
+        style={{
+          background: `color-mix(in srgb, var(${result.passed ? '--accent-success' : '--accent-danger'}) 15%, var(--surface-card))`,
+        }}
+      >
         {result.passed
-          ? <Check className="w-4 h-4 text-emerald-600" />
-          : <X className="w-4 h-4 text-red-500" />
+          ? <Check className="w-4 h-4" style={{ color: 'var(--accent-success)' }} />
+          : <X className="w-4 h-4" style={{ color: 'var(--accent-danger)' }} />
         }
       </div>
-      <span className={`text-[10px] font-medium tabular-nums ${
-        result.passed ? 'text-emerald-600' : 'text-red-500'
-      }`}>
+      <span
+        className="text-[10px] font-medium tabular-nums"
+        style={{ color: result.passed ? 'var(--accent-success)' : 'var(--accent-danger)' }}
+      >
         {result.latency_ms}ms
       </span>
     </motion.div>

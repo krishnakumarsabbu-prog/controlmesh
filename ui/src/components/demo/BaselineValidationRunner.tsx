@@ -20,6 +20,13 @@ interface AppResult {
   error?: string;
 }
 
+function statusVar(status: AppStatus): string {
+  if (status === 'passed') return '--accent-success';
+  if (status === 'failed') return '--accent-danger';
+  if (status === 'running') return '--accent-warning';
+  return '--surface-border';
+}
+
 export default function BaselineValidationRunner() {
   const [results, setResults] = useState<Record<string, AppResult>>(
     Object.fromEntries(VALIDATIONS.map((v) => [v.app, { app: v.app, status: 'pending' }]))
@@ -58,13 +65,13 @@ export default function BaselineValidationRunner() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-text-secondary">
           Confirm all 6 apps have working message flows before migration begins.
         </p>
         <button
           onClick={runAll}
           disabled={running}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-700 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+          className="btn-primary"
         >
           <Play className="w-3 h-3" />
           {running ? 'Validating…' : 'Run baseline'}
@@ -74,26 +81,36 @@ export default function BaselineValidationRunner() {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         {VALIDATIONS.map((v) => {
           const r = results[v.app];
+          const cssVar = statusVar(r.status);
           return (
             <div
               key={v.app}
-              className={`rounded-lg border px-3 py-2 flex items-center gap-2 transition-all ${
-                r.status === 'passed' ? 'border-emerald-200 bg-emerald-50' :
-                r.status === 'failed' ? 'border-red-200 bg-red-50' :
-                r.status === 'running' ? 'border-amber-200 bg-amber-50' :
-                'border-slate-200 bg-slate-50'
-              }`}
+              className="rounded-lg border px-3 py-2 flex items-center gap-2 transition-all"
+              style={{
+                borderColor: `color-mix(in srgb, var(${cssVar}) 30%, var(--surface-border))`,
+                background: `color-mix(in srgb, var(${cssVar}) 8%, var(--surface-raised))`,
+              }}
             >
-              {r.status === 'pending'  && <div className="w-4 h-4 rounded-full bg-slate-200 shrink-0" />}
-              {r.status === 'running'  && <Loader className="w-4 h-4 text-amber-500 animate-spin shrink-0" />}
-              {r.status === 'passed'   && <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />}
-              {r.status === 'failed'   && <XCircle className="w-4 h-4 text-red-500 shrink-0" />}
+              {r.status === 'pending' && (
+                <div className="w-4 h-4 rounded-full bg-surface-muted shrink-0" />
+              )}
+              {r.status === 'running' && (
+                <Loader className="w-4 h-4 animate-spin shrink-0" style={{ color: 'var(--accent-warning)' }} />
+              )}
+              {r.status === 'passed' && (
+                <CheckCircle className="w-4 h-4 shrink-0" style={{ color: 'var(--accent-success)' }} />
+              )}
+              {r.status === 'failed' && (
+                <XCircle className="w-4 h-4 shrink-0" style={{ color: 'var(--accent-danger)' }} />
+              )}
               <div className="min-w-0">
-                <div className="text-xs font-semibold text-slate-700">{v.app}</div>
-                <div className="text-[10px] font-mono text-slate-400 truncate">{v.qm}</div>
+                <div className="text-xs font-semibold text-text-primary">{v.app}</div>
+                <div className="text-[10px] font-mono text-text-muted truncate">{v.qm}</div>
               </div>
               {r.latency !== undefined && (
-                <span className="text-[10px] text-emerald-600 font-mono ml-auto shrink-0">{r.latency}ms</span>
+                <span className="text-[10px] font-mono ml-auto shrink-0" style={{ color: 'var(--accent-success)' }}>
+                  {r.latency}ms
+                </span>
               )}
             </div>
           );
@@ -101,11 +118,14 @@ export default function BaselineValidationRunner() {
       </div>
 
       {allDone && (
-        <div className={`rounded-lg px-3 py-2 text-xs font-semibold ${
-          passed === VALIDATIONS.length
-            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-            : 'bg-amber-50 text-amber-700 border border-amber-200'
-        }`}>
+        <div
+          className="rounded-lg px-3 py-2 text-xs font-semibold border"
+          style={{
+            background: `color-mix(in srgb, var(${passed === VALIDATIONS.length ? '--accent-success' : '--accent-warning'}) 10%, var(--surface-card))`,
+            borderColor: `color-mix(in srgb, var(${passed === VALIDATIONS.length ? '--accent-success' : '--accent-warning'}) 30%, transparent)`,
+            color: `var(${passed === VALIDATIONS.length ? '--accent-success' : '--accent-warning'})`,
+          }}
+        >
           {passed}/{VALIDATIONS.length} baseline validations passed
           {passed === VALIDATIONS.length ? ' — ready to migrate' : ' — investigate failures before proceeding'}
         </div>

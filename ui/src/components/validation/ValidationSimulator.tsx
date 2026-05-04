@@ -19,28 +19,31 @@ interface MetricCardProps {
   value: number | null;
   unit?: string;
   icon: React.ReactNode;
-  colorClass: string;
-  bgClass: string;
-  borderClass: string;
+  cssVar: string;
   highlight?: boolean;
 }
 
-function MetricCard({ label, value, unit, icon, colorClass, bgClass, borderClass, highlight }: MetricCardProps) {
+function MetricCard({ label, value, unit, icon, cssVar, highlight }: MetricCardProps) {
   return (
     <div
-      className={`relative flex flex-col gap-2 rounded-xl border p-4 transition-all duration-300 ${bgClass} ${borderClass} ${
-        highlight ? 'shadow-lg' : ''
-      }`}
+      className={`relative flex flex-col gap-2 rounded-xl border p-4 transition-all duration-300 ${highlight ? 'shadow-lg' : ''}`}
+      style={{
+        background: `color-mix(in srgb, var(${cssVar}) 8%, var(--surface-card))`,
+        borderColor: `color-mix(in srgb, var(${cssVar}) 25%, transparent)`,
+      }}
     >
       {highlight && (
         <motion.div
           className="absolute inset-0 rounded-xl"
           animate={{ opacity: [0.15, 0.3, 0.15] }}
           transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-          style={{ background: 'rgba(239,68,68,0.12)', borderRadius: '0.75rem' }}
+          style={{ background: `color-mix(in srgb, var(${cssVar}) 15%, transparent)`, borderRadius: '0.75rem' }}
         />
       )}
-      <div className={`flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest ${colorClass}`}>
+      <div
+        className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest"
+        style={{ color: `var(${cssVar})` }}
+      >
         {icon}
         {label}
       </div>
@@ -66,8 +69,8 @@ function MetricCard({ label, value, unit, icon, colorClass, bgClass, borderClass
 }
 
 const CHART_COLORS = {
-  sent: '#3b82f6',
-  received: '#10b981',
+  sent: 'var(--accent-primary)',
+  received: 'var(--accent-success)',
 };
 
 function buildInitialHistory(): MessageFlowPoint[] {
@@ -159,16 +162,16 @@ export default function ValidationSimulator() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.25 }}
-            className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-3.5"
+            className="flex items-center gap-3 rounded-xl border px-5 py-3.5 border-status-success bg-status-success"
           >
-            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+            <CheckCircle2 className="w-5 h-5 shrink-0 status-success" />
             <div className="flex-1 min-w-0">
-              <span className="text-sm font-bold text-emerald-300 tracking-wide">SUCCESS</span>
-              <span className="text-sm text-emerald-400/70 ml-2">
+              <span className="text-sm font-bold tracking-wide status-success">SUCCESS</span>
+              <span className="text-sm text-text-secondary ml-2">
                 All {result!.sent} messages delivered — latency {result!.latency_ms}ms
               </span>
             </div>
-            <div className="badge bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">PASS</div>
+            <div className="badge border border-status-success bg-status-success status-success">PASS</div>
           </motion.div>
         ) : (
           <motion.div
@@ -177,21 +180,21 @@ export default function ValidationSimulator() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.25 }}
-            className="flex items-center gap-3 rounded-xl border border-red-500/40 bg-red-500/10 px-5 py-3.5"
+            className="flex items-center gap-3 rounded-xl border px-5 py-3.5 border-status-danger bg-status-danger"
           >
             <motion.div
               animate={{ scale: [1, 1.15, 1] }}
               transition={{ duration: 0.6, repeat: 3 }}
             >
-              <XCircle className="w-5 h-5 text-red-400 shrink-0" />
+              <XCircle className="w-5 h-5 shrink-0 status-danger" />
             </motion.div>
             <div className="flex-1 min-w-0">
-              <span className="text-sm font-bold text-red-300 tracking-wide">FAILURE</span>
-              <span className="text-sm text-red-400/70 ml-2">
+              <span className="text-sm font-bold tracking-wide status-danger">FAILURE</span>
+              <span className="text-sm text-text-secondary ml-2">
                 {result!.errors} message{result!.errors !== 1 ? 's' : ''} lost — sent {result!.sent}, received {result!.received}
               </span>
             </div>
-            <div className="badge bg-red-500/20 text-red-300 border border-red-500/30">FAIL</div>
+            <div className="badge border border-status-danger bg-status-danger status-danger">FAIL</div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -218,11 +221,7 @@ export default function ValidationSimulator() {
             <button
               onClick={handleRun}
               disabled={running}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                running
-                  ? 'bg-surface-overlay text-text-muted cursor-not-allowed'
-                  : 'bg-blue-600 text-white hover:bg-blue-500 active:scale-95'
-              }`}
+              className={`btn-primary ${running ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {running ? (
                 <>
@@ -249,25 +248,19 @@ export default function ValidationSimulator() {
             label="Messages Sent"
             value={result?.sent ?? null}
             icon={<Send className="w-3.5 h-3.5" />}
-            colorClass="text-blue-400"
-            bgClass="bg-blue-500/5"
-            borderClass="border-blue-500/20"
+            cssVar="--accent-primary"
           />
           <MetricCard
             label="Messages Received"
             value={result?.received ?? null}
             icon={<Inbox className="w-3.5 h-3.5" />}
-            colorClass="text-emerald-400"
-            bgClass="bg-emerald-500/5"
-            borderClass="border-emerald-500/20"
+            cssVar="--accent-success"
           />
           <MetricCard
             label="Errors"
             value={result?.errors ?? null}
             icon={<AlertTriangle className="w-3.5 h-3.5" />}
-            colorClass={hasErrors ? 'text-red-400' : 'text-text-muted'}
-            bgClass={hasErrors ? 'bg-red-500/8' : 'bg-surface-overlay/30'}
-            borderClass={hasErrors ? 'border-red-500/30' : 'border-surface-border'}
+            cssVar={hasErrors ? '--accent-danger' : '--text-muted'}
             highlight={hasErrors}
           />
           <MetricCard
@@ -275,21 +268,7 @@ export default function ValidationSimulator() {
             value={result?.latency_ms ?? null}
             unit="ms"
             icon={<Timer className="w-3.5 h-3.5" />}
-            colorClass={
-              result?.latency_ms != null && result.latency_ms > 200
-                ? 'text-amber-400'
-                : 'text-sky-400'
-            }
-            bgClass={
-              result?.latency_ms != null && result.latency_ms > 200
-                ? 'bg-amber-500/5'
-                : 'bg-sky-500/5'
-            }
-            borderClass={
-              result?.latency_ms != null && result.latency_ms > 200
-                ? 'border-amber-500/20'
-                : 'border-sky-500/20'
-            }
+            cssVar={result?.latency_ms != null && result.latency_ms > 200 ? '--accent-warning' : '--accent-primary'}
           />
         </div>
 
@@ -304,30 +283,30 @@ export default function ValidationSimulator() {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
                 <XAxis
                   dataKey="tick"
-                  tick={{ fontSize: 10, fill: '#6B7280' }}
+                  tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
                   tickLine={false}
                   axisLine={false}
-                  label={{ value: 'Run', position: 'insideBottomRight', offset: -4, fontSize: 10, fill: '#6B7280' }}
+                  label={{ value: 'Run', position: 'insideBottomRight', offset: -4, fontSize: 10, fill: 'var(--text-muted)' }}
                 />
                 <YAxis
-                  tick={{ fontSize: 10, fill: '#6B7280' }}
+                  tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
                   tickLine={false}
                   axisLine={false}
                 />
                 <Tooltip
                   contentStyle={{
-                    background: '#141b2d',
-                    border: '1px solid rgba(255,255,255,0.08)',
+                    background: 'var(--surface-card)',
+                    border: '1px solid var(--surface-border)',
                     borderRadius: '8px',
                     fontSize: '12px',
-                    color: '#E5E7EB',
+                    color: 'var(--text-primary)',
                   }}
-                  cursor={{ stroke: 'rgba(255,255,255,0.06)' }}
+                  cursor={{ stroke: 'var(--surface-border)' }}
                 />
                 <Legend
                   iconType="circle"
                   iconSize={6}
-                  wrapperStyle={{ fontSize: '11px', color: '#9CA3AF', paddingTop: '8px' }}
+                  wrapperStyle={{ fontSize: '11px', color: 'var(--text-secondary)', paddingTop: '8px' }}
                 />
                 <Line
                   type="monotone"
@@ -375,14 +354,14 @@ export default function ValidationSimulator() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                className="flex items-center gap-3 rounded-lg bg-emerald-500/8 border border-emerald-500/20 px-4 py-3"
+                className="flex items-center gap-3 rounded-lg border px-4 py-3 border-status-success bg-status-success"
               >
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <CheckCircle2 className="w-4 h-4 shrink-0 status-success" />
                 <div>
-                  <span className="text-sm font-semibold text-emerald-300">
+                  <span className="text-sm font-semibold status-success">
                     No message loss detected
                   </span>
-                  <span className="text-xs text-emerald-400/60 ml-2">
+                  <span className="text-xs text-text-muted ml-2">
                     {result!.sent} sent, {result!.received} received, avg latency {result!.latency_ms}ms
                   </span>
                 </div>
@@ -394,14 +373,14 @@ export default function ValidationSimulator() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                className="flex items-center gap-3 rounded-lg bg-red-500/8 border border-red-500/25 px-4 py-3"
+                className="flex items-center gap-3 rounded-lg border px-4 py-3 border-status-danger bg-status-danger"
               >
-                <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+                <AlertTriangle className="w-4 h-4 shrink-0 status-danger" />
                 <div>
-                  <span className="text-sm font-semibold text-red-300">
+                  <span className="text-sm font-semibold status-danger">
                     Message loss detected
                   </span>
-                  <span className="text-xs text-red-400/60 ml-2">
+                  <span className="text-xs text-text-muted ml-2">
                     {result!.errors} message{result!.errors !== 1 ? 's' : ''} undelivered — investigate DLQ
                   </span>
                 </div>

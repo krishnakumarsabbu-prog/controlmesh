@@ -64,13 +64,13 @@ export default function PolicyEnforcementDemo() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between mb-1">
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-text-secondary">
           Attempt queue creation with non-compliant names — BCL must return 422 POLICY_VIOLATION.
         </p>
         <button
           onClick={runAll}
           disabled={running}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-700 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+          className="btn-primary"
         >
           <Play className="w-3 h-3" />
           {running ? 'Running…' : 'Run tests'}
@@ -80,40 +80,52 @@ export default function PolicyEnforcementDemo() {
       <div className="space-y-2">
         {TEST_CASES.map((tc, i) => {
           const result = results.find((r) => r.caseIdx === i);
+          const cssVar = result ? (result.passed ? '--accent-success' : '--accent-danger') : '--text-muted';
           return (
-            <div key={i} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5">
+            <div
+              key={i}
+              className="rounded-lg border px-3 py-2.5"
+              style={{
+                borderColor: `color-mix(in srgb, var(${cssVar}) 20%, var(--surface-border))`,
+                background: `color-mix(in srgb, var(${cssVar}) 6%, var(--surface-raised))`,
+              }}
+            >
               <div className="flex items-start gap-2">
                 <div className="mt-0.5">
                   {!result ? (
-                    <ShieldAlert className="w-4 h-4 text-slate-300" />
+                    <ShieldAlert className="w-4 h-4 text-text-muted" />
                   ) : result.passed ? (
-                    <CheckCircle className="w-4 h-4 text-emerald-500" />
+                    <CheckCircle className="w-4 h-4" style={{ color: 'var(--accent-success)' }} />
                   ) : (
-                    <XCircle className="w-4 h-4 text-red-500" />
+                    <XCircle className="w-4 h-4" style={{ color: 'var(--accent-danger)' }} />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-semibold text-slate-700">{tc.label}</span>
-                    <code className="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-mono">
+                    <span className="text-xs font-semibold text-text-primary">{tc.label}</span>
+                    <code className="text-[10px] bg-surface-muted text-text-secondary px-1.5 py-0.5 rounded font-mono">
                       {tc.payload.name}
                     </code>
                     {result && (
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                        result.passed ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
-                      }`}>
+                      <span
+                        className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                        style={{
+                          background: `color-mix(in srgb, var(${result.passed ? '--accent-success' : '--accent-danger'}) 15%, transparent)`,
+                          color: `var(${result.passed ? '--accent-success' : '--accent-danger'})`,
+                        }}
+                      >
                         HTTP {result.status}
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-0.5">{tc.description}</p>
+                  <p className="text-[11px] text-text-muted mt-0.5">{tc.description}</p>
                   {result && !result.passed && (
-                    <p className="text-[10px] text-red-500 mt-0.5 font-mono truncate">
+                    <p className="text-[10px] mt-0.5 font-mono truncate" style={{ color: 'var(--accent-danger)' }}>
                       Expected {tc.expectViolation ? '422' : '200'}, got {result.status}
                     </p>
                   )}
                 </div>
-                <div className="text-[10px] text-slate-400 shrink-0">
+                <div className="text-[10px] text-text-muted shrink-0">
                   {tc.expectViolation ? 'expect 422' : 'expect 200'}
                 </div>
               </div>
@@ -123,11 +135,14 @@ export default function PolicyEnforcementDemo() {
       </div>
 
       {results.length === TEST_CASES.length && (
-        <div className={`rounded-lg px-3 py-2 text-xs font-semibold ${
-          results.every((r) => r.passed)
-            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-            : 'bg-red-50 text-red-700 border border-red-200'
-        }`}>
+        <div
+          className="rounded-lg px-3 py-2 text-xs font-semibold border"
+          style={{
+            background: `color-mix(in srgb, var(${results.every((r) => r.passed) ? '--accent-success' : '--accent-danger'}) 10%, var(--surface-card))`,
+            borderColor: `color-mix(in srgb, var(${results.every((r) => r.passed) ? '--accent-success' : '--accent-danger'}) 30%, transparent)`,
+            color: `var(${results.every((r) => r.passed) ? '--accent-success' : '--accent-danger'})`,
+          }}
+        >
           {results.every((r) => r.passed)
             ? `All ${TEST_CASES.length} policy tests passed — BCL is enforcing guardrails`
             : `${results.filter((r) => !r.passed).length} test(s) failed — check BCL policy engine`}

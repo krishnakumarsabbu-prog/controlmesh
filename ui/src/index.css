@@ -15,12 +15,8 @@
     padding: 0;
   }
 
-  body {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    
-    /* Default (Standard) Theme Variables */
+  /* Default (Standard) Theme Variables — on :root so .theme-* on <html> overrides */
+  :root {
     --surface-base: #0B0F1A;
     --surface-raised: #0F1523;
     --surface-card: #141B2D;
@@ -36,12 +32,12 @@
     --accent-warning: #F59E0B;
     --accent-danger: #EF4444;
     --accent-glow: rgba(99, 102, 241, 0.15);
-
-    background-color: var(--surface-base);
-    color: var(--text-primary);
-    font-size: 14px;
-    line-height: 1.5;
-    transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease;
+    --logo-gradient: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
+    --logo-shadow: 0 4px 14px rgba(99,102,241,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+    --nav-active-bg: linear-gradient(135deg, rgba(99,102,241,0.18) 0%, rgba(79,70,229,0.08) 100%);
+    --nav-active-border: rgba(99,102,241,0.28);
+    --mesh-gradient: radial-gradient(circle at 20% 50%, rgba(99,102,241,0.04) 0%, transparent 50%),
+                     radial-gradient(circle at 80% 20%, rgba(34,197,94,0.03) 0%, transparent 50%);
   }
 
   .theme-sentinel {
@@ -60,6 +56,12 @@
     --accent-warning: #F59E0B;
     --accent-danger: #EF4444;
     --accent-glow: rgba(239, 68, 68, 0.2);
+    --logo-gradient: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+    --logo-shadow: 0 4px 14px rgba(239,68,68,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+    --nav-active-bg: linear-gradient(135deg, rgba(239,68,68,0.18) 0%, rgba(220,38,38,0.08) 100%);
+    --nav-active-border: rgba(239,68,68,0.28);
+    --mesh-gradient: radial-gradient(circle at 20% 50%, rgba(239,68,68,0.04) 0%, transparent 50%),
+                     radial-gradient(circle at 80% 20%, rgba(239,68,68,0.03) 0%, transparent 50%);
   }
 
   .theme-editorial {
@@ -78,17 +80,34 @@
     --accent-warning: #d4a017;
     --accent-danger: #c64545;
     --accent-glow: rgba(204, 120, 92, 0.15);
-    
+    --logo-gradient: linear-gradient(135deg, #cc785c 0%, #181715 100%);
+    --logo-shadow: 0 4px 14px rgba(204,120,92,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+    --nav-active-bg: var(--surface-overlay);
+    --nav-active-border: var(--surface-border);
+    --mesh-gradient: radial-gradient(circle at 20% 50%, rgba(204,120,92,0.04) 0%, transparent 50%),
+                     radial-gradient(circle at 80% 20%, rgba(93,184,114,0.03) 0%, transparent 50%);
+
     font-family: 'Inter', sans-serif;
   }
 
-  .theme-editorial h1, 
-  .theme-editorial h2, 
-  .theme-editorial h3, 
+  .theme-editorial h1,
+  .theme-editorial h2,
+  .theme-editorial h3,
   .theme-editorial .font-serif {
     font-family: 'Cormorant Garamond', serif;
     font-weight: 500;
     letter-spacing: -0.02em;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--surface-base);
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.5;
+    transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease;
   }
 
   code, .font-mono, pre {
@@ -104,19 +123,19 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #1E2A3D;
+    background: var(--surface-border);
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #2A3550;
+    background: var(--surface-muted);
   }
   ::-webkit-scrollbar-corner {
     background: transparent;
   }
 
   ::selection {
-    background: rgba(99, 102, 241, 0.3);
-    color: #E5E7EB;
+    background: var(--accent-glow);
+    color: var(--text-primary);
   }
 }
 
@@ -144,18 +163,22 @@
     -webkit-backdrop-filter: blur(12px);
   }
 
+  .theme-editorial .glass {
+    background: rgba(239, 233, 222, 0.75);
+  }
+
   /* ── Buttons ────────────────────────────────────────── */
   .btn-primary {
     @apply flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium
            text-white hover:opacity-90 active:scale-[0.97]
            transition-all duration-150 ease-out
            disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100;
-    background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
-    box-shadow: 0 1px 0 rgba(255,255,255,0.1) inset, 0 4px 12px rgba(99,102,241,0.25);
+    background: var(--logo-gradient);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.1) inset, 0 4px 12px var(--accent-glow);
   }
 
   .btn-primary:not(:disabled):hover {
-    box-shadow: 0 1px 0 rgba(255,255,255,0.12) inset, 0 6px 16px rgba(99,102,241,0.35);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.12) inset, 0 6px 16px var(--accent-glow);
   }
 
   .btn-ghost {
@@ -167,23 +190,38 @@
 
   .btn-danger {
     @apply flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium
-           text-red-300 border border-red-900/60 bg-red-900/20
-           hover:bg-red-900/35 hover:border-red-800
-           transition-all duration-150 ease-out active:scale-[0.97];
+           border transition-all duration-150 ease-out active:scale-[0.97];
+    color: var(--accent-danger);
+    border-color: color-mix(in srgb, var(--accent-danger) 40%, transparent);
+    background: color-mix(in srgb, var(--accent-danger) 12%, transparent);
+  }
+  .btn-danger:hover {
+    background: color-mix(in srgb, var(--accent-danger) 22%, transparent);
+    border-color: color-mix(in srgb, var(--accent-danger) 55%, transparent);
   }
 
   .btn-success {
     @apply flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium
-           text-green-300 border border-green-900/50 bg-green-900/15
-           hover:bg-green-900/30 hover:border-green-800
-           transition-all duration-150 ease-out active:scale-[0.97];
+           border transition-all duration-150 ease-out active:scale-[0.97];
+    color: var(--accent-success);
+    border-color: color-mix(in srgb, var(--accent-success) 40%, transparent);
+    background: color-mix(in srgb, var(--accent-success) 12%, transparent);
+  }
+  .btn-success:hover {
+    background: color-mix(in srgb, var(--accent-success) 22%, transparent);
+    border-color: color-mix(in srgb, var(--accent-success) 55%, transparent);
   }
 
   .btn-warning {
     @apply flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium
-           text-amber-300 border border-amber-900/50 bg-amber-900/15
-           hover:bg-amber-900/30 hover:border-amber-800
-           transition-all duration-150 ease-out active:scale-[0.97];
+           border transition-all duration-150 ease-out active:scale-[0.97];
+    color: var(--accent-warning);
+    border-color: color-mix(in srgb, var(--accent-warning) 40%, transparent);
+    background: color-mix(in srgb, var(--accent-warning) 12%, transparent);
+  }
+  .btn-warning:hover {
+    background: color-mix(in srgb, var(--accent-warning) 22%, transparent);
+    border-color: color-mix(in srgb, var(--accent-warning) 55%, transparent);
   }
 
   /* ── Stat cards ─────────────────────────────────────── */
@@ -207,8 +245,12 @@
     @apply w-full px-3 py-2 rounded-lg text-sm
            bg-surface-overlay border border-surface-border text-text-primary
            placeholder:text-text-muted
-           focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30
+           focus:outline-none
            transition-all duration-150;
+  }
+  .input:focus {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-primary) 30%, transparent);
   }
 
   .section-title {
@@ -254,7 +296,6 @@
   cursor: default;
 }
 
-/* ── React Flow dark overrides ──────────────────────────── */
 .react-flow__background {
   background-color: var(--surface-base) !important;
 }
@@ -286,22 +327,43 @@
 }
 
 /* ── Utility helpers ───────────────────────────────────── */
+.text-gradient-primary {
+  background: var(--logo-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
 .text-gradient-indigo {
-  background: linear-gradient(135deg, #818CF8 0%, #6366F1 100%);
+  background: var(--logo-gradient);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .text-gradient-green {
-  background: linear-gradient(135deg, #4ADE80 0%, #22C55E 100%);
+  background: linear-gradient(135deg, var(--accent-success) 0%, color-mix(in srgb, var(--accent-success) 70%, black) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .bg-mesh {
-  background-image:
-    radial-gradient(circle at 20% 50%, rgba(99,102,241,0.04) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(34,197,94,0.03) 0%, transparent 50%);
+  background-image: var(--mesh-gradient);
 }
+
+/* ── Theme-aware status colors ─────────────────────────── */
+.status-success { color: var(--accent-success); }
+.status-warning { color: var(--accent-warning); }
+.status-danger  { color: var(--accent-danger);  }
+.status-primary { color: var(--accent-primary); }
+
+.bg-status-success { background-color: color-mix(in srgb, var(--accent-success) 15%, transparent); }
+.bg-status-warning { background-color: color-mix(in srgb, var(--accent-warning) 15%, transparent); }
+.bg-status-danger  { background-color: color-mix(in srgb, var(--accent-danger)  15%, transparent); }
+.bg-status-primary { background-color: color-mix(in srgb, var(--accent-primary) 15%, transparent); }
+
+.border-status-success { border-color: color-mix(in srgb, var(--accent-success) 35%, transparent); }
+.border-status-warning { border-color: color-mix(in srgb, var(--accent-warning) 35%, transparent); }
+.border-status-danger  { border-color: color-mix(in srgb, var(--accent-danger)  35%, transparent); }
+.border-status-primary { border-color: color-mix(in srgb, var(--accent-primary) 35%, transparent); }

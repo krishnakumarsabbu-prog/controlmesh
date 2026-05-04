@@ -40,14 +40,14 @@ export default function BulkMigratePanel() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-text-secondary">
           Migrate APP2–APP6 sequentially to their dedicated queue managers.
           Each migration is fully automated — provision, rewire, validate.
         </p>
         <button
           onClick={migrateAll}
           disabled={running || allMigrated}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-700 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+          className="btn-primary"
         >
           {allMigrated ? <CheckCircle className="w-3 h-3" /> : <Layers className="w-3 h-3" />}
           {allMigrated ? 'All migrated' : running ? 'Migrating…' : 'Migrate APP2–APP6'}
@@ -59,14 +59,14 @@ export default function BulkMigratePanel() {
           const record = migrations[app.id];
           const state = record?.state ?? 'IDLE';
           return (
-            <div key={app.id} className="flex items-center gap-3 px-3 py-2 rounded-lg border border-slate-100 bg-slate-50">
-              <span className="text-xs font-semibold text-slate-700 w-12 shrink-0">{app.id}</span>
-              <span className="text-[11px] font-mono text-slate-400 flex-1 truncate">
+            <div key={app.id} className="flex items-center gap-3 px-3 py-2 rounded-lg border border-surface-border bg-surface-raised">
+              <span className="text-xs font-semibold text-text-primary w-12 shrink-0">{app.id}</span>
+              <span className="text-[11px] font-mono text-text-muted flex-1 truncate">
                 {app.source} → {app.target}
               </span>
               <StateBadge state={state} />
               {triggered.has(app.id) && state !== 'MIGRATED' && (
-                <Play className="w-3 h-3 text-amber-400 animate-pulse shrink-0" />
+                <Play className="w-3 h-3 animate-pulse shrink-0" style={{ color: 'var(--accent-warning)' }} />
               )}
             </div>
           );
@@ -74,11 +74,14 @@ export default function BulkMigratePanel() {
       </div>
 
       {migratedCount > 0 && (
-        <div className={`rounded-lg px-3 py-2 text-xs font-semibold ${
-          allMigrated
-            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-            : 'bg-amber-50 text-amber-700 border border-amber-200'
-        }`}>
+        <div
+          className="rounded-lg px-3 py-2 text-xs font-semibold border"
+          style={{
+            background: `color-mix(in srgb, var(${allMigrated ? '--accent-success' : '--accent-warning'}) 10%, var(--surface-card))`,
+            borderColor: `color-mix(in srgb, var(${allMigrated ? '--accent-success' : '--accent-warning'}) 30%, transparent)`,
+            color: `var(${allMigrated ? '--accent-success' : '--accent-warning'})`,
+          }}
+        >
           {allMigrated
             ? 'Target topology achieved — all 5 remaining apps on dedicated QMs'
             : `${migratedCount}/${REMAINING_APPS.length} migrations complete`}

@@ -33,7 +33,7 @@ export default function TopBar({ pageTitle }: TopBarProps) {
     <header
       className="h-13 flex items-center justify-between px-6 py-3 shrink-0 border-b border-surface-border bg-surface-base/95 backdrop-blur-md"
       style={{
-        boxShadow: theme === 'editorial' ? 'none' : '0 1px 0 rgba(255,255,255,0.04)',
+        boxShadow: '0 1px 0 rgba(255,255,255,0.04)',
       }}
     >
       {/* Left: page title + breadcrumb */}
@@ -42,21 +42,24 @@ export default function TopBar({ pageTitle }: TopBarProps) {
         <div className="flex items-center bg-surface-raised p-1 rounded-xl border border-surface-border gap-1">
           <button
             onClick={() => setTheme('standard')}
-            className={`p-1.5 rounded-lg transition-all ${theme === 'standard' ? 'bg-indigo-600 text-white shadow-lg' : 'text-text-muted hover:text-text-secondary'}`}
+            className={`p-1.5 rounded-lg transition-all ${theme === 'standard' ? 'text-white shadow-lg' : 'text-text-muted hover:text-text-secondary'}`}
+            style={theme === 'standard' ? { background: '#6366F1' } : undefined}
             title="Standard Dark Mode"
           >
             <ShieldCheck className="w-4 h-4" />
           </button>
           <button
             onClick={() => setTheme('sentinel')}
-            className={`p-1.5 rounded-lg transition-all ${theme === 'sentinel' ? 'bg-red-600 text-white shadow-lg' : 'text-text-muted hover:text-text-secondary'}`}
+            className={`p-1.5 rounded-lg transition-all ${theme === 'sentinel' ? 'text-white shadow-lg' : 'text-text-muted hover:text-text-secondary'}`}
+            style={theme === 'sentinel' ? { background: '#EF4444' } : undefined}
             title="Sentinel Compliance Mode"
           >
             <ShieldAlert className="w-4 h-4" />
           </button>
           <button
             onClick={() => setTheme('editorial')}
-            className={`p-1.5 rounded-lg transition-all ${theme === 'editorial' ? 'bg-[#cc785c] text-white shadow-lg' : 'text-text-muted hover:text-text-secondary'}`}
+            className={`p-1.5 rounded-lg transition-all ${theme === 'editorial' ? 'text-white shadow-lg' : 'text-text-muted hover:text-text-secondary'}`}
+            style={theme === 'editorial' ? { background: '#cc785c' } : undefined}
             title="Editorial Claude Theme"
           >
             <Type className="w-4 h-4" />
@@ -78,8 +81,7 @@ export default function TopBar({ pageTitle }: TopBarProps) {
         <div className="flex items-center gap-3 text-xs text-text-muted">
           <div className="flex items-center gap-1.5">
             <span
-              className="w-1.5 h-1.5 rounded-full"
-              style={{ background: '#9CA3AF' }}
+              className="w-1.5 h-1.5 rounded-full bg-text-muted"
             />
             <span>
               <span className="font-semibold text-text-secondary">{sourceCount}</span> source
@@ -88,7 +90,7 @@ export default function TopBar({ pageTitle }: TopBarProps) {
           <div className="flex items-center gap-1.5">
             <span
               className="w-1.5 h-1.5 rounded-full"
-              style={{ background: '#22C55E', boxShadow: '0 0 4px rgba(34,197,94,0.6)' }}
+              style={{ background: 'var(--accent-success)', boxShadow: '0 0 4px var(--accent-glow)' }}
             />
             <span>
               <span className="font-semibold text-text-secondary">{targetCount}</span> target
@@ -109,21 +111,16 @@ export default function TopBar({ pageTitle }: TopBarProps) {
 
         {/* Live indicator */}
         <div
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium"
-          style={{
-            background: 'rgba(34,197,94,0.08)',
-            borderColor: 'rgba(34,197,94,0.2)',
-            color: '#22C55E',
-          }}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium status-success border-status-success bg-status-success"
         >
           <span className="relative flex h-1.5 w-1.5">
             <span
               className="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping"
-              style={{ background: '#22C55E' }}
+              style={{ background: 'var(--accent-success)' }}
             />
             <span
               className="relative inline-flex rounded-full h-1.5 w-1.5"
-              style={{ background: '#22C55E' }}
+              style={{ background: 'var(--accent-success)' }}
             />
           </span>
           <Activity className="w-3 h-3" />

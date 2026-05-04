@@ -240,7 +240,8 @@ export default function MigrationPage() {
         </div>
         <div className="w-full h-2 bg-surface-border rounded-full overflow-hidden">
           <motion.div
-            className="h-full bg-gradient-to-r from-emerald-500 to-accent-emerald rounded-full"
+            className="h-full rounded-full"
+            style={{ background: 'var(--accent-success)' }}
             animate={{ width: `${progress}%` }}
             transition={{ duration: 0.7, ease: 'easeOut' }}
           />

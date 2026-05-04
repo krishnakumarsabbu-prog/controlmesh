@@ -50,7 +50,7 @@ export default function ValidationPage() {
         <div className="flex items-center gap-2">
           {isLoading && <LoadingSpinner size="sm" />}
           <span className="text-sm">
-            <span className="font-semibold text-accent-emerald">{totalPassed}</span>
+            <span className="font-semibold" style={{ color: 'var(--accent-success)' }}>{totalPassed}</span>
             <span className="text-text-muted"> / {APPS.length * PHASES.length} checks passed</span>
           </span>
         </div>

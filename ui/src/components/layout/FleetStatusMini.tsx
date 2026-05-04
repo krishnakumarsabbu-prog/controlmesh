@@ -18,41 +18,20 @@ export default function FleetStatusMini() {
 
   return (
     <div className="space-y-2">
-      <Row
-        color="#22C55E"
-        glow="rgba(34,197,94,0.5)"
-        label="Migrated"
-        count={counts.migrated}
-      />
-      <Row
-        color="#6366F1"
-        glow="rgba(99,102,241,0.5)"
-        label="Active"
-        count={counts.active}
-      />
-      <Row
-        color="#EF4444"
-        glow="rgba(239,68,68,0.5)"
-        label="Rolled back"
-        count={counts.rolledBack}
-      />
-      <Row
-        color="#2A3550"
-        glow="transparent"
-        label="Idle"
-        count={counts.idle}
-      />
+      <Row cssVar="--accent-success" label="Migrated" count={counts.migrated} />
+      <Row cssVar="--accent-primary" label="Active" count={counts.active} />
+      <Row cssVar="--accent-danger" label="Rolled back" count={counts.rolledBack} />
+      <Row cssVar="--surface-muted" label="Idle" count={counts.idle} dim />
 
-      {/* Mini progress bar */}
       {total > 0 && (
         <div className="pt-1">
-          <div className="w-full h-1 rounded-full overflow-hidden" style={{ background: '#1A2236' }}>
+          <div className="w-full h-1 rounded-full overflow-hidden bg-surface-overlay">
             <div
               className="h-full rounded-full transition-all duration-700 ease-out"
               style={{
                 width: `${migratedPct}%`,
-                background: 'linear-gradient(90deg, #22C55E, #16A34A)',
-                boxShadow: migratedPct > 0 ? '0 0 6px rgba(34,197,94,0.4)' : 'none',
+                background: 'var(--accent-success)',
+                boxShadow: migratedPct > 0 ? '0 0 6px var(--accent-glow)' : 'none',
               }}
             />
           </div>
@@ -69,28 +48,31 @@ export default function FleetStatusMini() {
 }
 
 function Row({
-  color,
-  glow,
+  cssVar,
   label,
   count,
+  dim,
 }: {
-  color: string;
-  glow: string;
+  cssVar: string;
   label: string;
   count: number;
+  dim?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
         <span
           className="w-1.5 h-1.5 rounded-full shrink-0"
-          style={{ background: color, boxShadow: count > 0 ? `0 0 5px ${glow}` : 'none' }}
+          style={{
+            background: `var(${cssVar})`,
+            boxShadow: count > 0 && !dim ? `0 0 5px var(${cssVar})` : 'none',
+          }}
         />
         <span className="text-[11px] text-text-secondary">{label}</span>
       </div>
       <span
         className="text-[11px] font-bold tabular-nums"
-        style={{ color: count > 0 ? color : '#6B7280' }}
+        style={{ color: count > 0 ? `var(${cssVar})` : 'var(--text-muted)' }}
       >
         {count}
       </span>

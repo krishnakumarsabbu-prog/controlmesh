@@ -28,5 +28,11 @@ export const useAppStore = create<AppState>((set) => ({
     })),
   setFleet: (fleet) => set({ fleet }),
   setSseConnected: (sseConnected) => set({ sseConnected }),
-  setTheme: (theme) => set({ theme }),
+  setTheme: (theme) => {
+    const root = document.documentElement;
+    root.classList.remove('theme-sentinel', 'theme-editorial');
+    if (theme === 'sentinel') root.classList.add('theme-sentinel');
+    else if (theme === 'editorial') root.classList.add('theme-editorial');
+    set({ theme });
+  },
 }));
