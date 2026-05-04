@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Activity, Bell, Settings } from 'lucide-react';
+import { Bell, ShieldCheck, ShieldAlert, Activity, Settings } from 'lucide-react';
 import { useFleet } from '../../hooks/useFleet';
+import { useAppStore } from '../store/appStore';
 
 interface TopBarProps {
   pageTitle?: string;
@@ -10,6 +11,11 @@ interface TopBarProps {
 export default function TopBar({ pageTitle }: TopBarProps) {
   const [now, setNow] = useState(new Date());
   const { data: fleet } = useFleet();
+  const { theme, setTheme } = useAppStore();
+
+  const toggleTheme = () => {
+    setTheme(theme === 'standard' ? 'sentinel' : 'standard');
+  };
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
@@ -32,6 +38,30 @@ export default function TopBar({ pageTitle }: TopBarProps) {
     >
       {/* Left: page title + breadcrumb */}
       <div className="flex items-center gap-3">
+        {/* Theme Switcher */}
+        <button
+          onClick={toggleTheme}
+          className={`flex items-center gap-2 px-3 py-1 rounded-lg border text-xs font-bold transition-all duration-300 ${
+            theme === 'sentinel'
+              ? 'bg-red-900/20 border-red-500/30 text-red-400'
+              : 'bg-indigo-900/20 border-indigo-500/30 text-indigo-400 hover:bg-indigo-900/40'
+          }`}
+        >
+          {theme === 'sentinel' ? (
+            <>
+              <ShieldAlert className="w-3.5 h-3.5" />
+              SENTINEL
+            </>
+          ) : (
+            <>
+              <ShieldCheck className="w-3.5 h-3.5" />
+              STANDARD
+            </>
+          )}
+        </button>
+
+        <div className="h-4 w-px bg-surface-border" />
+
         <div className="flex items-center gap-2">
           <span className="text-text-muted text-xs font-medium">ControlMesh</span>
           <span className="text-surface-muted text-xs">/</span>

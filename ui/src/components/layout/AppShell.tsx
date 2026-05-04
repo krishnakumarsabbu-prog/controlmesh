@@ -23,9 +23,10 @@ export default function AppShell() {
   const location = useLocation();
   const activeLabel = NAV.find((n) => location.pathname.startsWith(n.to))?.label ?? 'Dashboard';
   const { messages, handleCommand, isProcessing } = useAssistantAgent();
+  const theme = useAppStore((s) => s.theme);
 
   return (
-    <div className="flex h-screen bg-surface-base overflow-hidden bg-mesh">
+    <div className={`flex h-screen bg-surface-base overflow-hidden bg-mesh transition-colors duration-500 ${theme === 'sentinel' ? 'theme-sentinel' : ''}`}>
       {/* Sidebar */}
       <aside
         className="w-[220px] flex flex-col shrink-0 border-r border-surface-border"

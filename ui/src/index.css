@@ -19,10 +19,28 @@
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    --accent-emerald: #10B981;
+    --accent-blue: #3B82F6;
+    --accent-amber: #F59E0B;
+    --accent-crimson: #EF4444;
     background-color: #0B0F1A;
     color: #E5E7EB;
     font-size: 14px;
     line-height: 1.5;
+  }
+
+  .theme-sentinel {
+    --surface-base: #0D0505;
+    --surface-raised: #150808;
+    --surface-card: #1A0A0A;
+    --surface-overlay: #250F0F;
+    --surface-border: #3D1414;
+    --text-primary: #FEF2F2;
+    --text-secondary: #FECACA;
+    --text-muted: #991B1B;
+    --accent-primary: #EF4444;
+    --accent-secondary: #DC2626;
+    --accent-glow: rgba(239, 68, 68, 0.2);
   }
 
   code, .font-mono, pre {
@@ -157,6 +175,16 @@
 /* ── Custom keyframes ──────────────────────────────────── */
 @keyframes dash-move {
   to { stroke-dashoffset: -24; }
+}
+
+@keyframes alert-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+.animate-alert-pulse {
+  animation: alert-pulse 2s infinite;
 }
 
 @keyframes pulse-ring {

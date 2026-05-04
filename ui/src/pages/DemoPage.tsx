@@ -5,18 +5,20 @@ import PolicyEnforcementDemo from '../components/demo/PolicyEnforcementDemo';
 import BaselineValidationRunner from '../components/demo/BaselineValidationRunner';
 import RollbackDemoPanel from '../components/demo/RollbackDemoPanel';
 import BulkMigratePanel from '../components/demo/BulkMigratePanel';
+import SentinelDemoPanel from '../components/demo/SentinelDemoPanel';
 import EvidenceCollector from '../components/demo/EvidenceCollector';
 import { useMigrations } from '../hooks/useMigrations';
 import { useMigrationStream } from '../hooks/useMigrationStream';
 import LiveIndicator from '../components/shared/LiveIndicator';
 
-const SCENE_DURATIONS = ['4 min', '2 min', '8 min', '4 min', '5 min', '2 min'];
+const SCENE_DURATIONS = ['4 min', '2 min', '8 min', '4 min', '5 min', '4 min', '2 min'];
 const SCENE_TITLES = [
   'Source Topology + BCL Policy',
   'Baseline Validation',
   'First Migration — APP1',
   'Rollback Demonstration',
   'Migrate APP2–APP6',
+  'Autonomous Sentinel',
   'Evidence Collection',
 ];
 const SCENE_SUBTITLES = [
@@ -25,6 +27,7 @@ const SCENE_SUBTITLES = [
   'Watch APP1 progress through all 6 steps live',
   'Trigger broken migration on APP2 — automated rollback',
   'Sequential migration of remaining 5 apps to dedicated QMs',
+  'Drift detection & self-healing on Day-2 operations',
   'Collect evidence bundle for judges',
 ];
 
@@ -238,6 +241,17 @@ export default function DemoPage() {
         subtitle={SCENE_SUBTITLES[5]}
         status={getSceneStatus(5)}
         duration={SCENE_DURATIONS[5]}
+      >
+        <SentinelDemoPanel />
+      </SceneCard>
+
+      {/* Scene 7 */}
+      <SceneCard
+        number={7}
+        title={SCENE_TITLES[6]}
+        subtitle={SCENE_SUBTITLES[6]}
+        status={getSceneStatus(6)}
+        duration={SCENE_DURATIONS[6]}
       >
         <EvidenceCollector />
       </SceneCard>
