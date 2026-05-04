@@ -10,6 +10,7 @@ import DemoPage from './pages/DemoPage';
 import LogsPage from './pages/LogsPage';
 import MigrationExecutionPage from './pages/MigrationExecutionPage';
 import RollbackStatePage from './pages/RollbackStatePage';
+import AutonomousModePage from './pages/AutonomousModePage';
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
         <Route path="migration-plan" element={<MigrationPlanningPage />} />
         <Route path="migration-execution" element={<MigrationExecutionPage />} />
         <Route path="rollback-state" element={<RollbackStatePage />} />
+        <Route path="autonomous" element={<AutonomousModePage />} />
         <Route path="validation" element={<ValidationPage />} />
         <Route path="logs" element={<LogsPage />} />
         <Route path="audit" element={<AuditPage />} />
