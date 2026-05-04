@@ -44,14 +44,14 @@ export default function ValidationPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <ShieldCheck className="w-5 h-5 text-slate-600" />
-          <h1 className="text-xl font-semibold text-slate-900">Validation Matrix</h1>
+          <ShieldCheck className="w-5 h-5 text-text-secondary" />
+          <h1 className="text-xl font-semibold text-text-primary">Validation Matrix</h1>
         </div>
         <div className="flex items-center gap-2">
           {isLoading && <LoadingSpinner size="sm" />}
           <span className="text-sm">
-            <span className="font-semibold text-emerald-600">{totalPassed}</span>
-            <span className="text-slate-400"> / {APPS.length * PHASES.length} checks passed</span>
+            <span className="font-semibold text-accent-emerald">{totalPassed}</span>
+            <span className="text-text-muted"> / {APPS.length * PHASES.length} checks passed</span>
           </span>
         </div>
       </div>
@@ -62,22 +62,22 @@ export default function ValidationPage() {
       <ValidationSimulator />
 
       {/* Matrix table */}
-      <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+      <div className="card overflow-hidden">
         <table className="w-full">
           <thead>
-            <tr className="bg-slate-50 border-b border-slate-200">
-              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-36">
+            <tr className="bg-surface-raised border-b border-surface-border">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wider w-36">
                 Application
               </th>
               {PHASES.map((phase) => (
-                <th key={phase} className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <th key={phase} className="px-4 py-3 text-center text-xs font-semibold text-text-muted uppercase tracking-wider">
                   <div>{phase.replace('_', ' ')}</div>
-                  <div className="text-[10px] font-normal text-slate-400 normal-case tracking-normal mt-0.5">
+                  <div className="text-[10px] font-normal text-text-muted normal-case tracking-normal mt-0.5">
                     {PHASE_LABELS[phase]}
                   </div>
                 </th>
               ))}
-              <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider w-32">
+              <th className="px-4 py-3 text-center text-xs font-semibold text-text-muted uppercase tracking-wider w-32">
                 Latency trend
               </th>
             </tr>
@@ -92,13 +92,13 @@ export default function ValidationPage() {
               return (
                 <tr
                   key={app}
-                  className={`hover:bg-slate-50 transition-colors ${
-                    i < APPS.length - 1 ? 'border-b border-slate-100' : ''
+                  className={`hover:bg-surface-overlay transition-colors ${
+                    i < APPS.length - 1 ? 'border-b border-surface-border' : ''
                   }`}
                 >
                   <td className="px-4 py-3">
-                    <div className="font-semibold text-slate-800 text-sm">{app}</div>
-                    <div className="text-[11px] text-slate-400 font-mono">
+                    <div className="font-semibold text-text-primary text-sm">{app}</div>
+                    <div className="text-[11px] text-text-muted font-mono">
                       {app.replace('APP', 'QM.APP')}
                     </div>
                   </td>
@@ -135,16 +135,16 @@ export default function ValidationPage() {
           const max = values.length ? Math.max(...values) : null;
 
           return (
-            <div key={phase} className="rounded-xl border border-slate-200 bg-white px-4 py-4">
-              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+            <div key={phase} className="stat-card">
+              <div className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">
                 {phase.replace('_', ' ')}
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-slate-900">{avg ?? '—'}</span>
-                {avg !== null && <span className="text-sm text-slate-400">ms avg</span>}
+                <span className="text-2xl font-bold text-text-primary">{avg ?? '—'}</span>
+                {avg !== null && <span className="text-sm text-text-muted">ms avg</span>}
               </div>
               {max !== null && (
-                <div className="text-xs text-slate-400 mt-1">max {max} ms</div>
+                <div className="text-xs text-text-muted mt-1">max {max} ms</div>
               )}
             </div>
           );

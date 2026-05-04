@@ -86,19 +86,19 @@ export default function AppMigrationCard({ app, record, onMigrate, onRollback, i
   }, [app.id, isRollingBack]);
 
   const borderClass =
-    state === 'ROLLING_BACK'  ? 'border-red-200 shadow-red-50 shadow-md' :
-    state === 'ROLLED_BACK'   ? 'border-orange-200' :
-    isActive                  ? 'border-amber-200 shadow-amber-50 shadow-md' :
-    state === 'MIGRATED'      ? 'border-emerald-200' :
-    'border-slate-200';
+    state === 'ROLLING_BACK'  ? 'border-red-800 shadow-md shadow-red-900/20' :
+    state === 'ROLLED_BACK'   ? 'border-orange-800' :
+    isActive                  ? 'border-amber-800 shadow-md shadow-amber-900/20' :
+    state === 'MIGRATED'      ? 'border-emerald-800' :
+    'border-surface-border';
 
   const avatarClass =
-    state === 'MIGRATED'     ? 'bg-emerald-100 text-emerald-700' :
-    state === 'IDLE'         ? 'bg-slate-100 text-slate-500'     :
-    state === 'ROLLING_BACK' ? 'bg-red-100 text-red-700'         :
-    state === 'ROLLED_BACK'  ? 'bg-orange-100 text-orange-700'   :
-    isActive                 ? 'bg-amber-100 text-amber-700'     :
-    'bg-slate-100 text-slate-500';
+    state === 'MIGRATED'     ? 'bg-emerald-900/40 text-emerald-300' :
+    state === 'IDLE'         ? 'bg-surface-muted text-text-secondary' :
+    state === 'ROLLING_BACK' ? 'bg-red-900/40 text-red-300'         :
+    state === 'ROLLED_BACK'  ? 'bg-orange-900/40 text-orange-300'   :
+    isActive                 ? 'bg-amber-900/40 text-amber-300'     :
+    'bg-surface-muted text-text-secondary';
 
   const toggleStepper = () => {
     setExpandedView((v) => v === 'stepper' ? null : 'stepper');
@@ -142,7 +142,7 @@ export default function AppMigrationCard({ app, record, onMigrate, onRollback, i
     <motion.div
       layout
       data-testid={`migration-row-${app.id}`}
-      className={`rounded-xl border bg-white overflow-hidden transition-all duration-300 ${borderClass}`}
+      className={`rounded-xl border bg-surface-card overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover ${borderClass}`}
     >
       {/* Rollback in-progress banner */}
       <AnimatePresence>
@@ -172,8 +172,8 @@ export default function AppMigrationCard({ app, record, onMigrate, onRollback, i
           {app.id.replace('APP', '')}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-slate-800 text-sm">{app.id}</div>
-          <div className="text-[11px] text-slate-400 font-mono truncate">
+          <div className="font-semibold text-text-primary text-sm">{app.id}</div>
+          <div className="text-[11px] text-text-muted font-mono truncate">
             {app.source} → {app.target}
           </div>
         </div>
@@ -183,7 +183,7 @@ export default function AppMigrationCard({ app, record, onMigrate, onRollback, i
             <button
               onClick={onMigrate}
               disabled={isLoading}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-700 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-accent-blue hover:bg-accent-blue-hover text-white rounded-lg text-xs font-medium transition-all duration-150 active:scale-95 disabled:opacity-50"
             >
               <Play className="w-3 h-3" />
               Migrate
@@ -193,7 +193,7 @@ export default function AppMigrationCard({ app, record, onMigrate, onRollback, i
             <button
               onClick={onRollback}
               disabled={isLoading}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 border border-red-200"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-red-900/30 hover:bg-red-900/50 text-red-300 rounded-lg text-xs font-medium transition-all duration-150 disabled:opacity-50 border border-red-800"
             >
               <RotateCcw className="w-3 h-3" />
               Rollback
@@ -203,7 +203,7 @@ export default function AppMigrationCard({ app, record, onMigrate, onRollback, i
             <button
               onClick={toggleRollback}
               title="View rollback progress"
-              className={`p-1.5 rounded-lg transition-colors ${expandedView === 'rollback' ? 'bg-red-50 text-red-600' : 'hover:bg-slate-100 text-slate-400'}`}
+              className={`p-1.5 rounded-lg transition-colors ${expandedView === 'rollback' ? 'bg-red-900/40 text-red-300' : 'hover:bg-surface-overlay text-text-muted'}`}
             >
               <RotateCcw className="w-4 h-4" />
             </button>
@@ -212,7 +212,7 @@ export default function AppMigrationCard({ app, record, onMigrate, onRollback, i
             <button
               onClick={togglePlan}
               title="View migration plan"
-              className={`p-1.5 rounded-lg transition-colors ${expandedView === 'plan' ? 'bg-blue-50 text-blue-600' : 'hover:bg-slate-100 text-slate-400'}`}
+              className={`p-1.5 rounded-lg transition-colors ${expandedView === 'plan' ? 'bg-blue-900/40 text-blue-300' : 'hover:bg-surface-overlay text-text-muted'}`}
             >
               <ListChecks className="w-4 h-4" />
             </button>
@@ -220,14 +220,14 @@ export default function AppMigrationCard({ app, record, onMigrate, onRollback, i
           <button
             onClick={toggleExplain}
             title="Explain migration"
-            className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${expandedView === 'explain' ? 'bg-blue-50 text-blue-600 border border-blue-200' : 'hover:bg-slate-100 text-slate-500 border border-slate-200'}`}
+            className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${expandedView === 'explain' ? 'bg-blue-900/40 text-blue-300 border border-blue-800' : 'hover:bg-surface-overlay text-text-secondary border border-surface-border'}`}
           >
             <MessageSquare className="w-3.5 h-3.5" />
             Explain
           </button>
           <button
             onClick={toggleStepper}
-            className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+            className="p-1.5 rounded-lg hover:bg-surface-overlay transition-colors"
           >
             {expandedView === 'stepper'
               ? <ChevronUp className="w-4 h-4 text-slate-400" />
@@ -239,7 +239,7 @@ export default function AppMigrationCard({ app, record, onMigrate, onRollback, i
 
       {/* Timestamps */}
       {record?.started_at && (
-        <div className="flex items-center gap-1.5 px-4 pb-2 text-[11px] text-slate-400">
+        <div className="flex items-center gap-1.5 px-4 pb-2 text-[11px] text-text-muted">
           <Clock className="w-3 h-3" />
           Started {formatDistanceToNow(new Date(record.started_at), { addSuffix: true })}
           {record.error && state !== 'ROLLING_BACK' && (
@@ -257,14 +257,14 @@ export default function AppMigrationCard({ app, record, onMigrate, onRollback, i
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25 }}
-            className="overflow-hidden border-t border-slate-100"
+            className="overflow-hidden border-t border-surface-border"
           >
             {expandedView === 'stepper' && (
               <MigrationStepper record={record} />
             )}
             {expandedView === 'plan' && (
               planLoading ? (
-                <div className="flex items-center justify-center gap-2 py-6 text-sm text-slate-400">
+                <div className="flex items-center justify-center gap-2 py-6 text-sm text-text-muted">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Generating plan…
                 </div>

@@ -27,13 +27,13 @@ export default function AuditPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <ScrollText className="w-5 h-5 text-slate-600" />
-          <h1 className="text-xl font-semibold text-slate-900">Audit Log</h1>
+          <ScrollText className="w-5 h-5 text-text-secondary" />
+          <h1 className="text-xl font-semibold text-text-primary">Audit Log</h1>
         </div>
         <div className="flex items-center gap-2">
           {isLoading && <LoadingSpinner size="sm" />}
-          <span className="text-sm text-slate-500">
-            <span className="font-semibold text-slate-900">{events?.length ?? 0}</span>
+          <span className="text-sm text-text-secondary">
+            <span className="font-semibold text-text-primary">{events?.length ?? 0}</span>
             {' '}events
           </span>
         </div>
@@ -41,8 +41,8 @@ export default function AuditPage() {
 
       {/* Rollback alerts */}
       {rolledBackApps.length > 0 && (
-        <div className="rounded-xl border border-orange-200 bg-orange-50 p-4">
-          <div className="text-sm font-semibold text-orange-800 mb-3">
+        <div className="rounded-xl border border-orange-800 bg-orange-900/20 p-4">
+          <div className="text-sm font-semibold text-orange-300 mb-3">
             Rollback Events ({rolledBackApps.length})
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">

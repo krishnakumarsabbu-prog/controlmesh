@@ -10,10 +10,10 @@ export default function LiveIndicator() {
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
         )}
         <span className={`relative inline-flex rounded-full w-2 h-2 ${
-          connected ? 'bg-emerald-500' : 'bg-slate-300'
+          connected ? 'bg-accent-emerald' : 'bg-surface-muted'
         }`} />
       </span>
-      <span className={connected ? 'text-emerald-600' : 'text-slate-400'}>
+      <span className={connected ? 'text-accent-emerald' : 'text-text-muted'}>
         {connected ? 'Live' : 'Connecting…'}
       </span>
     </div>

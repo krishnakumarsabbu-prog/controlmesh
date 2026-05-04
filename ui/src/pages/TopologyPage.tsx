@@ -132,10 +132,10 @@ export default function TopologyPage() {
       {/* Header */}
       <div className="flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <Network className="w-5 h-5 text-slate-600" />
-          <h1 className="text-xl font-semibold text-slate-900">Topology View</h1>
+          <Network className="w-5 h-5 text-text-secondary" />
+          <h1 className="text-xl font-semibold text-text-primary">Topology View</h1>
           {totalChannels > 0 && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-xs font-medium text-amber-700">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-900/30 border border-amber-800 text-xs font-medium text-amber-300">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
               {rewiringCount} rewiring · {totalChannels} channel{totalChannels !== 1 ? 's' : ''} active
             </div>
@@ -168,15 +168,15 @@ export default function TopologyPage() {
             <DatabaseZap className="w-4 h-4" />
             {provisionState === 'loading' ? 'Provisioning...' : 'Provision Source Topology'}
           </button>
-          <div className="flex rounded-lg border border-slate-200 overflow-hidden">
+          <div className="flex rounded-lg border border-surface-border overflow-hidden">
             {(['split', 'source', 'target'] as ViewMode[]).map((v) => (
               <button
                 key={v}
                 onClick={() => setView(v)}
-                className={`px-4 py-1.5 text-sm font-medium capitalize transition-colors ${
+                className={`px-4 py-1.5 text-sm font-medium capitalize transition-all duration-150 ${
                   view === v
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-white text-slate-600 hover:bg-slate-50'
+                    ? 'bg-surface-overlay text-text-primary'
+                    : 'bg-surface-card text-text-secondary hover:bg-surface-overlay hover:text-text-primary'
                 }`}
               >
                 {v}
@@ -191,14 +191,14 @@ export default function TopologyPage() {
         <div
           className={`flex items-start gap-3 px-4 py-3 rounded-lg text-sm shrink-0 ${
             provisionState === 'success'
-              ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
-              : 'bg-red-50 border border-red-200 text-red-800'
+              ? 'bg-emerald-900/20 border border-emerald-800 text-emerald-300'
+              : 'bg-red-900/20 border border-red-800 text-red-300'
           }`}
         >
           {provisionState === 'success' ? (
-            <CheckCircle className="w-4 h-4 mt-0.5 shrink-0 text-emerald-600" />
+            <CheckCircle className="w-4 h-4 mt-0.5 shrink-0 text-emerald-400" />
           ) : (
-            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-red-800" />
+            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-red-400" />
           )}
           <span>{provisionMessage}</span>
         </div>
@@ -206,30 +206,30 @@ export default function TopologyPage() {
 
       {/* AI Analysis result panel */}
       {analysisResult && (
-        <div className="shrink-0 rounded-xl border border-red-200 bg-red-50 overflow-hidden">
-          <div className="flex items-start justify-between px-4 py-3 border-b border-red-200 bg-red-100/60">
+        <div className="shrink-0 rounded-xl border border-red-800 bg-red-900/20 overflow-hidden">
+          <div className="flex items-start justify-between px-4 py-3 border-b border-red-800 bg-red-900/30">
             <div className="flex items-center gap-2">
-              <ShieldAlert className="w-4 h-4 text-red-600" />
-              <span className="text-sm font-semibold text-red-900">AI Topology Analysis</span>
+              <ShieldAlert className="w-4 h-4 text-red-400" />
+              <span className="text-sm font-semibold text-red-300">AI Topology Analysis</span>
               <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-600 text-white tracking-wide">
                 {analysisResult.riskLevel} RISK
               </span>
             </div>
             <button
               onClick={() => { setAnalysisResult(null); setAgentMessage(''); setAnalysisState('idle'); }}
-              className="text-red-400 hover:text-red-600 transition-colors"
+              className="text-red-500 hover:text-red-300 transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
           <div className="px-4 py-3 flex flex-col gap-2">
-            <p className="text-sm font-medium text-red-800">
+            <p className="text-sm font-medium text-red-300">
               Reason: <span className="font-semibold">{analysisResult.reason}</span>
             </p>
             <ul className="flex flex-col gap-1">
               {analysisResult.details.map((d, i) => (
-                <li key={i} className="flex items-start gap-2 text-xs text-red-700">
-                  <span className="mt-0.5 w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                <li key={i} className="flex items-start gap-2 text-xs text-red-400">
+                  <span className="mt-0.5 w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
                   {d}
                 </li>
               ))}
@@ -237,10 +237,10 @@ export default function TopologyPage() {
           </div>
           {/* Agent message */}
           {agentMessage && (
-            <div className="flex items-center gap-2 px-4 py-2 border-t border-red-200 bg-red-900/5">
-              <MessageSquareWarning className="w-4 h-4 text-red-500 shrink-0" />
-              <span className="text-xs font-mono text-red-700">
-                <span className="font-semibold text-red-500">Agent:</span> {agentMessage}
+            <div className="flex items-center gap-2 px-4 py-2 border-t border-red-800 bg-red-900/20">
+              <MessageSquareWarning className="w-4 h-4 text-red-400 shrink-0" />
+              <span className="text-xs font-mono text-red-400">
+                <span className="font-semibold text-red-300">Agent:</span> {agentMessage}
               </span>
             </div>
           )}
@@ -249,7 +249,7 @@ export default function TopologyPage() {
 
       {/* Transparent rewiring legend */}
       {activeChannels.length > 0 && (
-        <div className="flex items-center gap-4 px-4 py-2 rounded-lg bg-amber-50 border border-amber-100 shrink-0 text-xs text-amber-800">
+        <div className="flex items-center gap-4 px-4 py-2 rounded-lg bg-amber-900/20 border border-amber-800 shrink-0 text-xs text-amber-300">
           <span className="font-semibold">Transparent Rewiring Active:</span>
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-amber-400" />
@@ -268,18 +268,18 @@ export default function TopologyPage() {
           {/* Source */}
           <div className="flex-1 flex flex-col gap-2 min-w-0">
             <div className="flex items-center gap-2 px-1 shrink-0">
-              <span className="w-2 h-2 rounded-full bg-slate-400" />
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              <span className="w-2 h-2 rounded-full bg-surface-muted" />
+              <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">
                 Source Topology
               </span>
-              <span className="text-xs text-slate-400">{sourceQMs.length} shared QMs</span>
+              <span className="text-xs text-text-muted">{sourceQMs.length} shared QMs</span>
               {sourceChannels.length > 0 && (
-                <span className="text-xs text-amber-600 font-medium">
+                <span className="text-xs text-amber-400 font-medium">
                   {sourceChannels.length} channel{sourceChannels.length !== 1 ? 's' : ''} rewiring
                 </span>
               )}
             </div>
-            <div className="flex-1 rounded-xl border border-slate-200 overflow-hidden bg-slate-50">
+            <div className="flex-1 rounded-xl border border-surface-border overflow-hidden bg-surface-raised">
               <TopologyCanvas
                 queueManagers={sourceQMs}
                 migrations={migrations}
@@ -292,9 +292,9 @@ export default function TopologyPage() {
 
           {/* Arrow with channel count */}
           <div className="flex items-center self-center shrink-0">
-            <div className="flex flex-col items-center gap-1 text-slate-300">
-              <ArrowRight className={`w-6 h-6 ${activeChannels.length > 0 ? 'text-amber-400' : ''}`} />
-              <span className={`text-[10px] font-semibold uppercase tracking-wider ${activeChannels.length > 0 ? 'text-amber-500' : ''}`}>
+            <div className="flex flex-col items-center gap-1 text-surface-border">
+              <ArrowRight className={`w-6 h-6 ${activeChannels.length > 0 ? 'text-amber-400' : 'text-surface-muted'}`} />
+              <span className={`text-[10px] font-semibold uppercase tracking-wider ${activeChannels.length > 0 ? 'text-amber-400' : 'text-text-muted'}`}>
                 {activeChannels.length > 0 ? `${activeChannels.length} chl` : 'migrate'}
               </span>
             </div>
@@ -303,13 +303,13 @@ export default function TopologyPage() {
           {/* Target */}
           <div className="flex-1 flex flex-col gap-2 min-w-0">
             <div className="flex items-center gap-2 px-1 shrink-0">
-              <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              <span className="w-2 h-2 rounded-full bg-accent-emerald" />
+              <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">
                 Target Topology
               </span>
-              <span className="text-xs text-slate-400">{targetQMs.length} dedicated QMs</span>
+              <span className="text-xs text-text-muted">{targetQMs.length} dedicated QMs</span>
             </div>
-            <div className="flex-1 rounded-xl border border-slate-200 overflow-hidden bg-slate-50">
+            <div className="flex-1 rounded-xl border border-surface-border overflow-hidden bg-surface-raised">
               <TopologyCanvas
                 queueManagers={targetQMs}
                 migrations={migrations}
@@ -323,12 +323,12 @@ export default function TopologyPage() {
       ) : (
         <div className="flex flex-col gap-2 flex-1 min-h-0">
           <div className="flex items-center gap-2 px-1 shrink-0">
-            <span className={`w-2 h-2 rounded-full ${view === 'source' ? 'bg-slate-400' : 'bg-emerald-400'}`} />
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <span className={`w-2 h-2 rounded-full ${view === 'source' ? 'bg-surface-muted' : 'bg-accent-emerald'}`} />
+            <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">
               {view === 'source' ? 'Source Topology' : 'Target Topology'}
             </span>
           </div>
-          <div className="flex-1 rounded-xl border border-slate-200 overflow-hidden bg-slate-50">
+          <div className="flex-1 rounded-xl border border-surface-border overflow-hidden bg-surface-raised">
             <TopologyCanvas
               queueManagers={view === 'source' ? sourceQMs : targetQMs}
               migrations={migrations}

@@ -46,20 +46,20 @@ export default function MigrationPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Layers className="w-5 h-5 text-slate-600" />
-          <h1 className="text-xl font-semibold text-slate-900">Migration Console</h1>
+          <Layers className="w-5 h-5 text-text-secondary" />
+          <h1 className="text-xl font-semibold text-text-primary">Migration Console</h1>
         </div>
         <div className="flex items-center gap-4">
           <LiveIndicator />
-          <div className="text-sm text-slate-500">
-            <span className="font-semibold text-slate-900">{migratedCount}</span>
-            <span className="text-slate-400"> / {APPS.length} apps migrated</span>
+          <div className="text-sm text-text-secondary">
+            <span className="font-semibold text-text-primary">{migratedCount}</span>
+            <span className="text-text-muted"> / {APPS.length} apps migrated</span>
           </div>
           {!allMigrated && (
             <button
               onClick={migrateAll}
               disabled={bulkRunning || isLoading}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-700 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-accent-blue hover:bg-accent-blue-hover text-white rounded-lg text-xs font-medium transition-all duration-150 active:scale-95 disabled:opacity-50"
             >
               <Play className="w-3 h-3" />
               {bulkRunning ? 'Migrating all…' : 'Migrate all'}
@@ -70,13 +70,13 @@ export default function MigrationPage() {
 
       {/* Overall progress bar */}
       <div>
-        <div className="flex justify-between text-xs text-slate-500 mb-1.5">
+        <div className="flex justify-between text-xs text-text-muted mb-1.5">
           <span>Overall progress</span>
           <span>{Math.round(progress)}%</span>
         </div>
-        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+        <div className="w-full h-2 bg-surface-border rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-700"
+            className="h-full bg-gradient-to-r from-emerald-500 to-accent-emerald rounded-full transition-all duration-700"
             style={{ width: `${progress}%` }}
           />
         </div>

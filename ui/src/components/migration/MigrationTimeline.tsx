@@ -14,8 +14,8 @@ const STATE_ORDER: MigrationState[] = [
 
 export default function MigrationTimeline({ apps, migrations }: Props) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-5 py-4">
-      <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">
+    <div className="card px-5 py-4">
+      <div className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-4">
         Migration Progress Overview
       </div>
       <div className="space-y-3">
@@ -29,8 +29,8 @@ export default function MigrationTimeline({ apps, migrations }: Props) {
 
           return (
             <div key={id} className="flex items-center gap-3">
-              <span className="text-xs font-mono font-semibold text-slate-600 w-12 shrink-0">{id}</span>
-              <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+              <span className="text-xs font-mono font-semibold text-text-secondary w-12 shrink-0">{id}</span>
+              <div className="flex-1 h-2 bg-surface-border rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-700"
                   style={{

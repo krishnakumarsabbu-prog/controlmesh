@@ -7,14 +7,14 @@ export const STATE_COLORS: Record<MigrationState, {
   ring: string;
   border: string;
 }> = {
-  IDLE:                 { bg: 'bg-slate-100',    text: 'text-slate-600',   dot: '#94a3b8', ring: '#e2e8f0', border: 'border-slate-200' },
-  SNAPSHOTTED:          { bg: 'bg-blue-100',     text: 'text-blue-700',    dot: '#3b82f6', ring: '#bfdbfe', border: 'border-blue-200' },
-  PROVISIONING_TARGET:  { bg: 'bg-amber-100',    text: 'text-amber-700',   dot: '#f59e0b', ring: '#fde68a', border: 'border-amber-200' },
-  REWIRING:             { bg: 'bg-amber-100',    text: 'text-amber-700',   dot: '#f59e0b', ring: '#fde68a', border: 'border-amber-200' },
-  VALIDATING:           { bg: 'bg-sky-100',      text: 'text-sky-700',     dot: '#0ea5e9', ring: '#bae6fd', border: 'border-sky-200' },
-  MIGRATED:             { bg: 'bg-emerald-100',  text: 'text-emerald-700', dot: '#10b981', ring: '#a7f3d0', border: 'border-emerald-200' },
-  ROLLING_BACK:         { bg: 'bg-red-100',      text: 'text-red-700',     dot: '#ef4444', ring: '#fecaca', border: 'border-red-200' },
-  ROLLED_BACK:          { bg: 'bg-orange-100',   text: 'text-orange-700',  dot: '#f97316', ring: '#fed7aa', border: 'border-orange-200' },
+  IDLE:                 { bg: 'bg-surface-muted/40',   text: 'text-text-secondary',  dot: '#6B7280', ring: '#374151', border: 'border-surface-border' },
+  SNAPSHOTTED:          { bg: 'bg-blue-900/30',        text: 'text-blue-300',         dot: '#3b82f6', ring: '#1e3a5f', border: 'border-blue-800' },
+  PROVISIONING_TARGET:  { bg: 'bg-amber-900/30',       text: 'text-amber-300',        dot: '#f59e0b', ring: '#451a03', border: 'border-amber-800' },
+  REWIRING:             { bg: 'bg-amber-900/30',       text: 'text-amber-300',        dot: '#f59e0b', ring: '#451a03', border: 'border-amber-800' },
+  VALIDATING:           { bg: 'bg-cyan-900/30',        text: 'text-cyan-300',         dot: '#06b6d4', ring: '#164e63', border: 'border-cyan-800' },
+  MIGRATED:             { bg: 'bg-emerald-900/30',     text: 'text-emerald-300',      dot: '#10b981', ring: '#022c22', border: 'border-emerald-800' },
+  ROLLING_BACK:         { bg: 'bg-red-900/30',         text: 'text-red-300',          dot: '#ef4444', ring: '#450a0a', border: 'border-red-800' },
+  ROLLED_BACK:          { bg: 'bg-orange-900/30',      text: 'text-orange-300',       dot: '#f97316', ring: '#431407', border: 'border-orange-800' },
 };
 
 export const PULSING_STATES: MigrationState[] = [

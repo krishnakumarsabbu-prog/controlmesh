@@ -15,10 +15,10 @@ export default function FleetStatusMini() {
 
   return (
     <div className="space-y-1.5">
-      <Row color="bg-emerald-500" label="Migrated" count={counts.migrated} />
-      <Row color="bg-amber-400" label="Active" count={counts.active} />
-      <Row color="bg-orange-400" label="Rolled back" count={counts.rolledBack} />
-      <Row color="bg-slate-500" label="Idle" count={counts.idle} />
+      <Row color="bg-accent-emerald" label="Migrated" count={counts.migrated} />
+      <Row color="bg-accent-amber" label="Active" count={counts.active} />
+      <Row color="bg-accent-red" label="Rolled back" count={counts.rolledBack} />
+      <Row color="bg-surface-muted" label="Idle" count={counts.idle} />
     </div>
   );
 }
@@ -28,9 +28,9 @@ function Row({ color, label, count }: { color: string; label: string; count: num
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-1.5">
         <span className={`w-2 h-2 rounded-full ${color}`} />
-        <span className="text-xs text-slate-400">{label}</span>
+        <span className="text-xs text-text-secondary">{label}</span>
       </div>
-      <span className="text-xs text-slate-300 font-semibold tabular-nums">{count}</span>
+      <span className="text-xs text-text-primary font-semibold tabular-nums">{count}</span>
     </div>
   );
 }
