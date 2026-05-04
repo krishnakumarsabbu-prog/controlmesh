@@ -3,93 +3,66 @@ from google.adk.agents import Agent
 
 from .base import GEMINI_MODEL
 from .tools.audit_tools import log_audit_event
+from .tools.validation_tools import (
+    assert_delivery,
+    check_channel_status,
+    check_queue_depth,
+    get_test_message,
+    put_test_message,
+    report_result,
+)
 
 log = structlog.get_logger()
 
-
-async def test_queue_depth(qm_name: str, queue_name: str) -> dict:
-    """Return the current depth of a queue on the specified QM."""
-    from bcl.mq.registry import get_registry
-
-    registry = get_registry()
-    qm = registry.get(qm_name)
-    if qm is None:
-        return {"error": f"QM {qm_name} not found in registry"}
-    try:
-        queues_data = await qm.client.list_queues(qm.internal_name)
-        queues = queues_data.get("queue", [])
-        for q in queues:
-            if q.get("name") == queue_name:
-                return {"qm": qm_name, "queue": queue_name, "depth": q.get("currentDepth", 0)}
-        return {"qm": qm_name, "queue": queue_name, "depth": 0, "note": "queue not found"}
-    except Exception as exc:
-        return {"error": str(exc)}
-
-
-async def send_probe_message(qm_name: str, queue_name: str, payload: str) -> dict:
-    """Send a probe message to a queue and return the correlation ID."""
-    from bcl.mq.registry import get_registry
-
-    registry = get_registry()
-    qm = registry.get(qm_name)
-    if qm is None:
-        return {"error": f"QM {qm_name} not found in registry"}
-    try:
-        correlation_id = await qm.client.put_message(qm.internal_name, queue_name, payload)
-        return {"sent": True, "correlation_id": correlation_id, "qm": qm_name, "queue": queue_name}
-    except Exception as exc:
-        return {"error": str(exc)}
-
-
-async def receive_probe_message(qm_name: str, queue_name: str, correlation_id: str) -> dict:
-    """Attempt to receive a probe message by correlation ID."""
-    from bcl.mq.registry import get_registry
-
-    registry = get_registry()
-    qm = registry.get(qm_name)
-    if qm is None:
-        return {"error": f"QM {qm_name} not found in registry"}
-    try:
-        body = await qm.client.get_message(qm.internal_name, queue_name, correlation_id)
-        return {"received": body is not None, "body": body, "qm": qm_name, "queue": queue_name}
-    except Exception as exc:
-        return {"error": str(exc)}
-
-
-async def check_qm_reachable(qm_name: str) -> dict:
-    """Check whether a queue manager is reachable via the MQ REST API."""
-    from bcl.mq.registry import get_registry
-
-    registry = get_registry()
-    qm = registry.get(qm_name)
-    if qm is None:
-        return {"reachable": False, "reason": f"QM {qm_name} not in registry"}
-    try:
-        await qm.client.get_qmgr_status()
-        return {"reachable": True, "qm": qm_name}
-    except Exception as exc:
-        return {"reachable": False, "qm": qm_name, "reason": str(exc)}
-
-
 _INSTRUCTION = """
-You are the Validation Agent for an IBM MQ migration system.
+You are the IBM MQ Validation Agent. Your job is to validate that message
+flows are working correctly at three phases: BASELINE, POST_REWIRE, FINAL.
 
-Your responsibility is to verify that message flows work correctly at each stage
-of the migration (baseline, post-rewire, post-cutover).
+## Tools available
+- put_test_message(qm_name, queue_name, message_body, correlation_id)
+- get_test_message(qm_name, queue_name, correlation_id, timeout_seconds)
+- assert_delivery(correlation_id, received_message) → pass/fail + latency
+- report_result(phase, app_id, passed, latency_ms, details)
+- check_queue_depth(qm_name, queue_name) → current depth
+- check_channel_status(qm_name, channel_name) → RUNNING/STOPPED/etc
+- log_audit_event(operation, qm_target, agent, result)
 
-Validation sequence:
-1. Check both source and target QMs are reachable
-2. Send a probe message to the relevant queue on the source QM
-3. Verify the probe message arrives on the target QM (post-rewire) or stays local (baseline)
-4. Check queue depths are as expected (no stuck messages)
-5. Log audit events with validation outcome
+## Validation protocol
+For each application queue pair (e.g. Q.APP1.REQUEST.LOCAL):
+1. Generate a unique correlation_id (UUID)
+2. PUT test message to the SOURCE of the flow:
+   - BASELINE: PUT to source QM queue directly
+   - POST_REWIRE: PUT to source QM queue (which now routes via remote def)
+   - FINAL: PUT to target QM queue directly
+3. GET the message from the DESTINATION queue with 5-second timeout
+4. assert_delivery to compare correlation IDs and measure latency
+5. check_queue_depth to confirm no stuck messages
+6. If channel involved: check_channel_status to confirm RUNNING
 
-Return a JSON result:
+## Pass criteria
+- Message received within 5000 ms
+- Correlation ID matches
+- No duplicate messages (queue depth returns to 0)
+- Channel status is RUNNING (when applicable)
+
+## Failure criteria
+- Message not received within 5 seconds
+- Correlation ID mismatch
+- Queue depth non-zero after GET (messages stuck)
+- Channel in ERROR or STOPPED state
+
+## Response format
+Return ONLY valid JSON:
 {
-  "passed": true|false,
-  "phase": "baseline"|"post_rewire"|"post_cutover",
-  "checks": [{"name": "...", "passed": true|false, "detail": "..."}],
-  "error": null|"description"
+  "phase": "BASELINE" | "POST_REWIRE" | "FINAL",
+  "app_id": "<id>",
+  "passed": true | false,
+  "latency_ms": <number>,
+  "queue_tested": "<name>",
+  "source_qm": "<name>",
+  "dest_qm": "<name>",
+  "details": "<description>",
+  "error": null | "<description>"
 }
 """
 
@@ -100,10 +73,12 @@ def build_validation_agent() -> Agent:
         model=GEMINI_MODEL,
         instruction=_INSTRUCTION,
         tools=[
-            check_qm_reachable,
-            test_queue_depth,
-            send_probe_message,
-            receive_probe_message,
+            put_test_message,
+            get_test_message,
+            assert_delivery,
+            report_result,
+            check_queue_depth,
+            check_channel_status,
             log_audit_event,
         ],
     )

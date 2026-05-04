@@ -1,7 +1,7 @@
 import structlog
 from fastapi import APIRouter, Request
 
-from bcl.models.migration import ValidationRequest
+from bcl.models.migration import AgentValidateRequest, ValidationRequest
 from bcl.policy.naming import validate_naming
 from bcl.policy.tls import check_tls_required
 from bcl.policy.mca import check_mca_authz
@@ -58,4 +58,64 @@ async def validate_operations(payload: ValidationRequest, request: Request):
             "valid": sum(1 for r in results if r["valid"]),
             "invalid": sum(1 for r in results if not r["valid"]),
         },
+    }
+
+
+@router.post("/validate/flow")
+async def run_flow_validation(req: AgentValidateRequest):
+    """Run agent-driven message-flow validation for a given phase."""
+    import json
+    from bcl.agents.base import APP_ID, get_session_service
+    from bcl.agents.validation_agent import build_validation_agent
+    from google.adk.runners import Runner
+    from google.genai import types as genai_types
+
+    agent = build_validation_agent()
+    session_service = get_session_service()
+    runner = Runner(agent=agent, app_name=APP_ID, session_service=session_service)
+
+    session = await session_service.create_session(app_name=APP_ID, user_id=req.app_id)
+
+    prompt = (
+        f"Run {req.phase} validation for {req.app_id}. "
+        f"Test queue {req.queue_name} on {req.qm_name}. "
+        f"Return JSON validation result."
+    )
+
+    result_text = ""
+    async for event in runner.run_async(
+        session_id=session.id,
+        user_id=req.app_id,
+        new_message=genai_types.Content(
+            role="user",
+            parts=[genai_types.Part(text=prompt)],
+        ),
+    ):
+        if event.is_final_response():
+            result_text = event.content.parts[0].text
+
+    try:
+        cleaned = result_text.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.split("```", 2)[1]
+            if cleaned.startswith("json"):
+                cleaned = cleaned[4:]
+            cleaned = cleaned.rsplit("```", 1)[0].strip()
+        return json.loads(cleaned)
+    except Exception:
+        return {"raw": result_text, "parse_error": "response was not valid JSON"}
+
+
+@router.get("/validate/{app_id}/history")
+async def get_validation_history(app_id: str):
+    """Return the last 100 validation results for an application."""
+    import json
+    from bcl.state.redis_store import RedisStore
+
+    store = RedisStore()
+    r = await store._get_redis()
+    raw = await r.lrange(f"validation:{app_id}", 0, -1)
+    return {
+        "app_id": app_id,
+        "results": [json.loads(item) for item in raw],
     }

@@ -67,3 +67,10 @@ class ValidationRequest(BaseModel):
     app_id: Optional[str] = None
     qm_name: Optional[str] = None
     operations: list[dict[str, Any]]
+
+
+class AgentValidateRequest(BaseModel):
+    app_id: str
+    qm_name: str
+    queue_name: str
+    phase: str  # BASELINE | POST_REWIRE | FINAL

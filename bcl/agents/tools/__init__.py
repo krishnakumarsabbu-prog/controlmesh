@@ -35,4 +35,19 @@ __all__ = [
     "save_snapshot",
     "load_snapshot",
     "log_audit_event",
+    "put_test_message",
+    "get_test_message",
+    "assert_delivery",
+    "report_result",
+    "check_queue_depth",
+    "check_channel_status",
 ]
+
+from .validation_tools import (
+    assert_delivery,
+    check_channel_status,
+    check_queue_depth,
+    get_test_message,
+    put_test_message,
+    report_result,
+)
