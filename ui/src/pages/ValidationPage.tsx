@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { ShieldCheck } from 'lucide-react';
 import ValidationBadge from '../components/validation/ValidationBadge';
 import LatencySparkline from '../components/validation/LatencySparkline';
+import ValidationSimulator from '../components/validation/ValidationSimulator';
+import ValidationSimulator from '../components/validation/ValidationSimulator';
 import LoadingSpinner from '../components/shared/LoadingSpinner';
 import { fetchValidationHistory } from '../api/validation';
 import type { ValidationResult } from '../types';
@@ -53,6 +55,12 @@ export default function ValidationPage() {
           </span>
         </div>
       </div>
+      {/* Simulation panel */}
+      <ValidationSimulator />
+
+
+      {/* Simulation panel */}
+      <ValidationSimulator />
 
       {/* Matrix table */}
       <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">

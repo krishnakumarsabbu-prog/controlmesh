@@ -98,6 +98,22 @@ export interface ValidationResult {
   details?: string;
 }
 
+export interface ValidationSimResult {
+  sent: number;
+  received: number;
+  errors: number;
+  passed: boolean;
+  timestamp: number;
+}
+
+export interface ValidationSimResult {
+  sent: number;
+  received: number;
+  errors: number;
+  passed: boolean;
+  timestamp: number;
+}
+
 // ── Fleet / connectivity ──────────────────────────────────────────────────────
 
 export interface QueueManagerFleet {

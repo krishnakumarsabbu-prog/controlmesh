@@ -1,4 +1,4 @@
-import type { MigrationRecord, MigrationState, MigrationPlanStep, ValidationResult, MigrationPlanResponse, TopologyChannel } from '../../types';
+import type { MigrationRecord, MigrationState, MigrationPlanStep, ValidationResult, ValidationSimResult, MigrationPlanResponse, TopologyChannel } from '../../types';
 import {
   MOCK_FLEET,
   MOCK_MIGRATIONS,
@@ -244,6 +244,15 @@ export const mockApi = {
     const current = migrationPlanSteps[appId];
     if (current) callback(current);
     return () => stepListeners.delete(wrapper);
+  },
+
+  async runValidationSimulation(): Promise<ValidationSimResult> {
+    await delay(800);
+    const sent = Math.floor(Math.random() * 101) + 100; // 100–200
+    const hasErrors = Math.random() < 0.4;
+    const errors = hasErrors ? Math.floor(Math.random() * 10) + 1 : 0;
+    const received = sent - errors;
+    return { sent, received, errors, passed: errors === 0, timestamp: Date.now() };
   },
 
   getPlanSteps(appId: string): MigrationPlanStep[] | null {
