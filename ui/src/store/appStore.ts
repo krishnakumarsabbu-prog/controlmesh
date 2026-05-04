@@ -5,12 +5,12 @@ interface AppState {
   migrations: Record<string, MigrationRecord>;
   fleet: Fleet | null;
   sseConnected: boolean;
-  theme: 'standard' | 'sentinel';
+  theme: 'standard' | 'sentinel' | 'editorial';
   setMigration: (record: MigrationRecord) => void;
   setMigrations: (records: MigrationRecord[]) => void;
   setFleet: (fleet: Fleet) => void;
   setSseConnected: (connected: boolean) => void;
-  setTheme: (theme: 'standard' | 'sentinel') => void;
+  setTheme: (theme: 'standard' | 'sentinel' | 'editorial') => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({

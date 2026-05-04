@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Bell, ShieldCheck, ShieldAlert, Activity, Settings } from 'lucide-react';
+import { Bell, ShieldCheck, ShieldAlert, Activity, Settings, Type } from 'lucide-react';
 import { useFleet } from '../../hooks/useFleet';
 import { useAppStore } from '../../store/appStore';
 
@@ -13,8 +13,10 @@ export default function TopBar({ pageTitle }: TopBarProps) {
   const { data: fleet } = useFleet();
   const { theme, setTheme } = useAppStore();
 
-  const toggleTheme = () => {
-    setTheme(theme === 'standard' ? 'sentinel' : 'standard');
+  const cycleTheme = () => {
+    const sequence: ('standard' | 'sentinel' | 'editorial')[] = ['standard', 'sentinel', 'editorial'];
+    const next = sequence[(sequence.indexOf(theme) + 1) % sequence.length];
+    setTheme(next);
   };
 
   useEffect(() => {
@@ -39,26 +41,29 @@ export default function TopBar({ pageTitle }: TopBarProps) {
       {/* Left: page title + breadcrumb */}
       <div className="flex items-center gap-3">
         {/* Theme Switcher */}
-        <button
-          onClick={toggleTheme}
-          className={`flex items-center gap-2 px-3 py-1 rounded-lg border text-xs font-bold transition-all duration-300 ${
-            theme === 'sentinel'
-              ? 'bg-red-900/20 border-red-500/30 text-red-400'
-              : 'bg-indigo-900/20 border-indigo-500/30 text-indigo-400 hover:bg-indigo-900/40'
-          }`}
-        >
-          {theme === 'sentinel' ? (
-            <>
-              <ShieldAlert className="w-3.5 h-3.5" />
-              SENTINEL
-            </>
-          ) : (
-            <>
-              <ShieldCheck className="w-3.5 h-3.5" />
-              STANDARD
-            </>
-          )}
-        </button>
+        <div className="flex items-center bg-surface-raised p-1 rounded-xl border border-surface-border gap-1">
+          <button
+            onClick={() => setTheme('standard')}
+            className={`p-1.5 rounded-lg transition-all ${theme === 'standard' ? 'bg-indigo-600 text-white shadow-lg' : 'text-text-muted hover:text-text-secondary'}`}
+            title="Standard Dark Mode"
+          >
+            <ShieldCheck className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setTheme('sentinel')}
+            className={`p-1.5 rounded-lg transition-all ${theme === 'sentinel' ? 'bg-red-600 text-white shadow-lg' : 'text-text-muted hover:text-text-secondary'}`}
+            title="Sentinel Compliance Mode"
+          >
+            <ShieldAlert className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setTheme('editorial')}
+            className={`p-1.5 rounded-lg transition-all ${theme === 'editorial' ? 'bg-[#cc785c] text-white shadow-lg' : 'text-text-muted hover:text-text-secondary'}`}
+            title="Editorial Claude Theme"
+          >
+            <Type className="w-4 h-4" />
+          </button>
+        </div>
 
         <div className="h-4 w-px bg-surface-border" />
 

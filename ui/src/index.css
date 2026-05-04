@@ -43,6 +43,31 @@
     --accent-glow: rgba(239, 68, 68, 0.2);
   }
 
+  .theme-editorial {
+    --surface-base: #faf9f5;
+    --surface-raised: #f5f0e8;
+    --surface-card: #efe9de;
+    --surface-overlay: #e8e0d2;
+    --surface-border: #e6dfd8;
+    --text-primary: #141413;
+    --text-secondary: #3d3d3a;
+    --text-muted: #6c6a64;
+    --accent-primary: #cc785c;
+    --accent-secondary: #181715;
+    --accent-glow: rgba(204, 120, 92, 0.15);
+    
+    font-family: 'Inter', sans-serif;
+  }
+
+  .theme-editorial h1, 
+  .theme-editorial h2, 
+  .theme-editorial h3, 
+  .theme-editorial .font-serif {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+
   code, .font-mono, pre {
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
   }

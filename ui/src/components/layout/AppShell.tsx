@@ -27,13 +27,15 @@ export default function AppShell() {
   const theme = useAppStore((s) => s.theme);
 
   return (
-    <div className={`flex h-screen bg-surface-base overflow-hidden bg-mesh transition-colors duration-500 ${theme === 'sentinel' ? 'theme-sentinel' : ''}`}>
+    <div className={`flex h-screen bg-surface-base overflow-hidden bg-mesh transition-all duration-500 ${
+      theme === 'sentinel' ? 'theme-sentinel' : 
+      theme === 'editorial' ? 'theme-editorial' : ''
+    }`}>
       {/* Sidebar */}
       <aside
-        className="w-[220px] flex flex-col shrink-0 border-r border-surface-border"
+        className="w-[220px] flex flex-col shrink-0 border-r border-surface-border bg-surface-raised"
         style={{
-          background: 'linear-gradient(180deg, #0F1523 0%, #0B0F1A 100%)',
-          boxShadow: '1px 0 0 rgba(255,255,255,0.04), 4px 0 24px rgba(0,0,0,0.4)',
+          boxShadow: theme === 'editorial' ? 'none' : '1px 0 0 rgba(255,255,255,0.04), 4px 0 24px rgba(0,0,0,0.4)',
         }}
       >
         {/* Logo */}
