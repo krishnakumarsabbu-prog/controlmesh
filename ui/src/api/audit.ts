@@ -1,4 +1,5 @@
-import { bclClient } from './client';
+import { bclClient, IS_MOCK } from './client';
+import { mockApi } from './mock/service';
 import type { AuditEvent } from '../types';
 
 export interface AuditFilters {
@@ -8,6 +9,7 @@ export interface AuditFilters {
 }
 
 export async function fetchAuditLog(filters: AuditFilters = {}): Promise<AuditEvent[]> {
+  if (IS_MOCK) return mockApi.getAuditLog(filters);
   const params = new URLSearchParams({ limit: String(filters.limit ?? 200) });
   if (filters.operation) params.set('operation', filters.operation);
   if (filters.qm) params.set('qm', filters.qm);
