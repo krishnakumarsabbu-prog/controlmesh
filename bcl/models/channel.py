@@ -2,6 +2,12 @@ from pydantic import BaseModel
 from typing import Optional
 
 
+class Channel(BaseModel):
+    id: str
+    sourceQM: str
+    targetQM: str
+
+
 class ChannelCreate(BaseModel):
     name: str
     qm_name: str

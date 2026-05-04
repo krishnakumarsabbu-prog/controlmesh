@@ -1,6 +1,6 @@
 import { bclClient, IS_MOCK } from './client';
 import { mockApi } from './mock/service';
-import type { Fleet, QueueManager } from '../types';
+import type { Fleet, QueueManagerFleet } from '../types';
 
 export async function fetchFleet(): Promise<Fleet> {
   if (IS_MOCK) return mockApi.getFleet();
@@ -8,7 +8,7 @@ export async function fetchFleet(): Promise<Fleet> {
   return data;
 }
 
-export async function fetchQMStatus(qmName: string): Promise<QueueManager> {
+export async function fetchQMStatus(qmName: string): Promise<QueueManagerFleet> {
   if (IS_MOCK) return mockApi.getQMStatus(qmName);
   const { data } = await bclClient.get(`/api/fleet/${qmName}/status`);
   return data;

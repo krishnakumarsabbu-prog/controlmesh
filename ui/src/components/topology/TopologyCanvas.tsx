@@ -14,7 +14,7 @@ import 'reactflow/dist/style.css';
 import { QMNode, type QMNodeData } from './QMNode';
 import { ChannelEdge } from './ChannelEdge';
 import TopologyLegend from './TopologyLegend';
-import type { QueueManager, MigrationRecord } from '../../types';
+import type { QueueManagerFleet, MigrationRecord } from '../../types';
 
 const nodeTypes = { qmNode: QMNode };
 const edgeTypes = { channelEdge: ChannelEdge };
@@ -37,12 +37,12 @@ const APP_COUNTS: Record<string, number> = {
 };
 
 interface Props {
-  queueManagers: QueueManager[];
+  queueManagers: QueueManagerFleet[];
   migrations: Record<string, MigrationRecord>;
   mode: 'source' | 'target';
 }
 
-function buildLayout(qms: QueueManager[], migrations: Record<string, MigrationRecord>, mode: 'source' | 'target') {
+function buildLayout(qms: QueueManagerFleet[], migrations: Record<string, MigrationRecord>, mode: 'source' | 'target') {
   const nodes: Node<QMNodeData>[] = [];
   const edges: Edge[] = [];
 

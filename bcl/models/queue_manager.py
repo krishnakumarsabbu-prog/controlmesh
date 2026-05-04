@@ -1,5 +1,12 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import List, Optional
+from bcl.models.queue import Queue
+
+
+class QueueManager(BaseModel):
+    id: str
+    name: str
+    queues: List[Queue] = []
 
 
 class QueueManagerBase(BaseModel):

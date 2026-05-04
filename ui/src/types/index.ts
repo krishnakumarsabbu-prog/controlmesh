@@ -1,3 +1,48 @@
+// ── Core domain models ────────────────────────────────────────────────────────
+
+export interface Application {
+  id: string;
+  name: string;
+}
+
+export interface Queue {
+  id: string;
+  name: string;
+  type: 'local' | 'remote';
+}
+
+export interface QueueManager {
+  id: string;
+  name: string;
+  queues: Queue[];
+}
+
+export interface Channel {
+  id: string;
+  sourceQM: string;
+  targetQM: string;
+}
+
+export interface Topology {
+  applications: Application[];
+  queueManagers: QueueManager[];
+  channels: Channel[];
+}
+
+export type MigrationStepStatus = 'pending' | 'running' | 'success' | 'failed';
+
+export interface MigrationStep {
+  id: string;
+  action: string;
+  status: MigrationStepStatus;
+}
+
+export interface MigrationPlan {
+  steps: MigrationStep[];
+}
+
+// ── Migration state machine ───────────────────────────────────────────────────
+
 export type MigrationState =
   | 'IDLE'
   | 'SNAPSHOTTED'
@@ -27,7 +72,9 @@ export interface ValidationResult {
   details?: string;
 }
 
-export interface QueueManager {
+// ── Fleet / connectivity ──────────────────────────────────────────────────────
+
+export interface QueueManagerFleet {
   name: string;
   internal_name: string;
   svc_url: string;
@@ -36,8 +83,10 @@ export interface QueueManager {
 }
 
 export interface Fleet {
-  queue_managers: QueueManager[];
+  queue_managers: QueueManagerFleet[];
 }
+
+// ── Audit ─────────────────────────────────────────────────────────────────────
 
 export interface AuditEvent {
   timestamp: number;
@@ -48,6 +97,8 @@ export interface AuditEvent {
   trace_id?: string;
   details?: Record<string, unknown>;
 }
+
+// ── SSE events ────────────────────────────────────────────────────────────────
 
 export interface SSEMigrationEvent {
   app_id: string;

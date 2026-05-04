@@ -1,5 +1,11 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Literal, Optional
+
+
+class Queue(BaseModel):
+    id: str
+    name: str
+    type: Literal["local", "remote"]
 
 
 class QueueCreate(BaseModel):
