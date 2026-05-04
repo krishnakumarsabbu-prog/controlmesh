@@ -152,3 +152,175 @@ async def create_remote_def(
         target_qm=remote_qm_name,
     )
     return {"status": "created", "remote_def": remote_queue_name}
+
+
+async def diff_topology(source_qm: str, target_qm: str, app_id: str) -> dict:
+    """Compare source and target topology to determine what needs to move."""
+    import httpx
+
+    registry = get_registry()
+    source_entry = registry.get(source_qm)
+
+    r = await source_entry.client._get_client().get(
+        f"{source_entry.svc_url}/ibmmq/rest/v2/admin/qmgr"
+        f"/{source_entry.internal_name}/queue",
+        auth=source_entry.client.auth,
+        params={"name": f"Q.{app_id}.*"},
+    )
+    r.raise_for_status()
+    source_queues = [q["name"] for q in r.json().get("queue", [])]
+
+    target_queues: list = []
+    try:
+        target_entry = registry.get(target_qm)
+        r2 = await target_entry.client._get_client().get(
+            f"{target_entry.svc_url}/ibmmq/rest/v2/admin/qmgr"
+            f"/{target_entry.internal_name}/queue",
+            auth=target_entry.client.auth,
+            params={"name": f"Q.{app_id}.*"},
+        )
+        if r2.status_code == 200:
+            target_queues = [q["name"] for q in r2.json().get("queue", [])]
+    except KeyError:
+        pass  # Target QM not yet created — all queues need to move
+
+    queues_to_move = [
+        q for q in source_queues if q not in target_queues and "DLQ" not in q
+    ]
+
+    log.info(
+        "tool_diff_topology",
+        source_qm=source_qm,
+        target_qm=target_qm,
+        app_id=app_id,
+        to_move=len(queues_to_move),
+    )
+    return {
+        "app_id": app_id,
+        "source_qm": source_qm,
+        "target_qm": target_qm,
+        "queues_on_source": source_queues,
+        "queues_on_target": target_queues,
+        "queues_to_move": queues_to_move,
+        "action_required": len(queues_to_move) > 0,
+    }
+
+
+async def create_sender_channel(
+    source_qm: str, channel_name: str, target_host: str, target_port: int = 1414
+) -> dict:
+    """Create SDR (sender) channel on source QM pointing at target QM listener."""
+    await enforce_pre_operation(
+        {
+            "type": "create_channel",
+            "object_type": "channel",
+            "name": channel_name,
+            "channel_type": "SDR",
+            "ssl_cipher_spec": "TLS_RSA_WITH_AES_256_CBC_SHA256",
+            "cross_region": False,
+        },
+        source_qm,
+    )
+    registry = get_registry()
+    qm = registry.get(source_qm)
+
+    # Derive the xmit queue name from channel name convention CHL.<SRC>.<APP>
+    # → Q.<SRC>.<APP>.XMIT.XMIT
+    parts = channel_name.split(".")  # e.g. ["CHL", "SRCA", "APP1"]
+    xmit_suffix = ".".join(parts[1:]) if len(parts) >= 3 else channel_name
+    xmit_name = f"Q.{xmit_suffix}.XMIT.XMIT"
+
+    await qm.client.create_channel(
+        qm.internal_name,
+        channel_name,
+        {
+            "type": "SDR",
+            "connectionName": f"{target_host}({target_port})",
+            "xmitQName": xmit_name,
+            "sslCipherSpec": "TLS_RSA_WITH_AES_256_CBC_SHA256",
+        },
+    )
+    log.info("tool_create_sender_channel", qm=source_qm, channel=channel_name, target=target_host)
+    return {"status": "created", "channel": channel_name, "type": "SDR", "qm": source_qm}
+
+
+async def create_receiver_channel(target_qm: str, channel_name: str) -> dict:
+    """Create RCVR (receiver) channel on target QM."""
+    await enforce_pre_operation(
+        {
+            "type": "create_channel",
+            "object_type": "channel",
+            "name": channel_name,
+            "channel_type": "RCVR",
+            "ssl_cipher_spec": "TLS_RSA_WITH_AES_256_CBC_SHA256",
+        },
+        target_qm,
+    )
+    registry = get_registry()
+    qm = registry.get(target_qm)
+    await qm.client.create_channel(
+        qm.internal_name,
+        channel_name,
+        {
+            "type": "RCVR",
+            "sslCipherSpec": "TLS_RSA_WITH_AES_256_CBC_SHA256",
+            "mcaUser": "mqm",
+        },
+    )
+    log.info("tool_create_receiver_channel", qm=target_qm, channel=channel_name)
+    return {"status": "created", "channel": channel_name, "type": "RCVR", "qm": target_qm}
+
+
+async def start_channel(qm_name: str, channel_name: str) -> dict:
+    """Start a channel (initiate connection)."""
+    registry = get_registry()
+    qm = registry.get(qm_name)
+    r = await qm.client._get_client().post(
+        f"{qm.svc_url}/ibmmq/rest/v2/admin/action/qmgr"
+        f"/{qm.internal_name}/channel/{channel_name}/start",
+        auth=qm.client.auth,
+        headers={"ibm-mq-rest-csrf-token": "blank"},
+    )
+    r.raise_for_status()
+    log.info("tool_start_channel", qm=qm_name, channel=channel_name)
+    return {"status": "started", "channel": channel_name, "qm": qm_name}
+
+
+async def move_consumer(app_id: str, from_qm: str, to_qm: str) -> dict:
+    """
+    Update the consumer application's MQ connection binding in Redis.
+    In a production system this would update a ConfigMap or environment variable.
+    """
+    import datetime
+    from bcl.state.redis_store import RedisStore
+
+    store = RedisStore()
+    r = await store._get_redis()
+    await r.hset(
+        f"consumer:{app_id}",
+        mapping={
+            "qm": to_qm,
+            "migrated_at": str(datetime.datetime.utcnow()),
+        },
+    )
+    log.info("tool_move_consumer", app_id=app_id, from_qm=from_qm, to_qm=to_qm)
+    return {"status": "consumer_moved", "app_id": app_id, "from_qm": from_qm, "to_qm": to_qm}
+
+
+async def delete_local_queue(qm_name: str, queue_name: str) -> dict:
+    """Remove a local queue from a QM (used during cutover)."""
+    registry = get_registry()
+    qm = registry.get(qm_name)
+    await qm.client.delete_queue(qm.internal_name, queue_name)
+    log.info("tool_delete_local_queue", qm=qm_name, queue=queue_name)
+    return {"status": "deleted", "queue": queue_name, "qm": qm_name}
+
+
+async def delete_xmit_queue(qm_name: str, xmit_queue_name: str) -> dict:
+    """Remove transmission queue from source QM after migration is confirmed."""
+    return await delete_local_queue(qm_name, xmit_queue_name)
+
+
+async def delete_remote_def(qm_name: str, remote_def_name: str) -> dict:
+    """Remove remote queue definition from source QM after migration is confirmed."""
+    return await delete_local_queue(qm_name, remote_def_name)
