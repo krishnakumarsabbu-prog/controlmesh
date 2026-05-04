@@ -1,26 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronDown, BrainCircuit } from 'lucide-react';
+import { X, ChevronDown, BrainCircuit, Send } from 'lucide-react';
 
 export interface AssistantMessage {
   id: string;
   text: string;
   type: 'info' | 'success' | 'warning' | 'error';
 }
-
-// ── Demo messages that cycle automatically when no external messages provided ──
-const DEMO_MESSAGES: Omit<AssistantMessage, 'id'>[] = [
-  { text: 'Analyzing queue topology...', type: 'info' },
-  { text: 'Planning migration for APP1 → QM.APP1', type: 'info' },
-  { text: 'Executing step 1 of 4: snapshot channels', type: 'info' },
-  { text: 'Executing step 2 of 4: provision target', type: 'info' },
-  { text: 'Executing step 3 of 4: rewire connections', type: 'warning' },
-  { text: 'Validation successful — latency within SLA', type: 'success' },
-  { text: 'Migration complete. Monitoring drift...', type: 'success' },
-  { text: 'Policy check passed for all 6 apps', type: 'success' },
-  { text: 'Detecting anomaly in QM.SRC.B throughput', type: 'warning' },
-  { text: 'Rollback checkpoint saved', type: 'info' },
-];
 
 // ── Typing cursor ─────────────────────────────────────────────────────────────
 function TypingText({ text, onDone }: { text: string; onDone?: () => void }) {
@@ -67,42 +53,17 @@ const MSG_STYLE = {
 } satisfies Record<AssistantMessage['type'], { text: string; dot: string; bg: string }>;
 
 interface Props {
-  /** Pass external messages to override demo mode */
-  messages?: AssistantMessage[];
+  messages: AssistantMessage[];
+  onUserMessage: (text: string) => void;
+  isProcessing?: boolean;
 }
 
-let _idCounter = 0;
-function nextId() { return `fa-${++_idCounter}`; }
-
-export default function FloatingAssistant({ messages: externalMessages }: Props) {
+export default function FloatingAssistant({ messages, onUserMessage, isProcessing }: Props) {
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [unread, setUnread] = useState(0);
+  const [inputValue, setInputValue] = useState('');
   const prevLenRef = useRef(0);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const demoIdxRef = useRef(0);
-
-  // Seed with first demo message immediately, then cycle
-  useEffect(() => {
-    if (externalMessages) return; // driven externally
-
-    const push = () => {
-      const demo = DEMO_MESSAGES[demoIdxRef.current % DEMO_MESSAGES.length];
-      demoIdxRef.current++;
-      const msg: AssistantMessage = { id: nextId(), ...demo };
-      setMessages((prev) => [...prev.slice(-19), msg]); // keep last 20
-    };
-
-    push(); // first message right away
-    const iv = setInterval(push, 4500);
-    return () => clearInterval(iv);
-  }, [externalMessages]);
-
-  // Sync external messages
-  useEffect(() => {
-    if (!externalMessages) return;
-    setMessages(externalMessages);
-  }, [externalMessages]);
 
   // Unread counter
   useEffect(() => {
@@ -274,12 +235,51 @@ export default function FloatingAssistant({ messages: externalMessages }: Props)
                     </motion.div>
                   );
                 })}
+                {isProcessing && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex gap-2 rounded-xl px-3 py-2 bg-sky-500/5"
+                  >
+                    <span className="mt-[6px] w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse shadow-[0_0_5px_#38BDF8]" />
+                    <p className="text-[11px] text-sky-400 italic">Thinking...</p>
+                  </motion.div>
+                )}
+              </div>
+
+              {/* Input Area */}
+              <div className="px-3 pb-3 pt-1 border-t border-white/5 bg-black/20">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!inputValue.trim() || isProcessing) return;
+                    onUserMessage(inputValue);
+                    setInputValue('');
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <input
+                    type="text"
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    placeholder="Ask assistant or give command..."
+                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-[11px] text-white placeholder:text-slate-500 focus:outline-none focus:border-sky-500/50 transition-colors"
+                    disabled={isProcessing}
+                  />
+                  <button
+                    type="submit"
+                    disabled={!inputValue.trim() || isProcessing}
+                    className="p-1.5 rounded-lg bg-sky-600 text-white disabled:opacity-50 hover:bg-sky-500 transition-colors"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                  </button>
+                </form>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* FAB — circular avatar with pulse rings */}
+        {/* FAB */}
         <div className={!open ? 'fa-float' : ''}>
           <motion.button
             onClick={() => setOpen((v) => !v)}
@@ -288,7 +288,6 @@ export default function FloatingAssistant({ messages: externalMessages }: Props)
             className="relative focus:outline-none"
             aria-label="Toggle AI assistant"
           >
-            {/* Pulse rings — only when closed */}
             {!open && (
               <>
                 <span
@@ -302,7 +301,6 @@ export default function FloatingAssistant({ messages: externalMessages }: Props)
               </>
             )}
 
-            {/* Gradient border ring */}
             <div
               className="w-14 h-14 rounded-full flex items-center justify-center"
               style={{
@@ -315,7 +313,6 @@ export default function FloatingAssistant({ messages: externalMessages }: Props)
                   : '0 0 0 3px rgba(14,165,233,0.1), 0 0 20px rgba(14,165,233,0.3), 0 6px 20px rgba(0,0,0,0.45)',
               }}
             >
-              {/* Inner avatar circle */}
               <div
                 className="w-full h-full rounded-full flex items-center justify-center overflow-hidden"
                 style={{
@@ -348,7 +345,6 @@ export default function FloatingAssistant({ messages: externalMessages }: Props)
               </div>
             </div>
 
-            {/* Unread badge */}
             <AnimatePresence>
               {unread > 0 && !open && (
                 <motion.span

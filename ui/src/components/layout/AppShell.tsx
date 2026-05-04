@@ -3,6 +3,7 @@ import { LayoutDashboard, Network, Layers, ShieldCheck, ScrollText, Presentation
 import TopBar from './TopBar';
 import FleetStatusMini from './FleetStatusMini';
 import FloatingAssistant from '../shared/FloatingAssistant';
+import { useAssistantAgent } from '../../hooks/useAssistantAgent';
 
 const NAV = [
   { to: '/dashboard',           icon: LayoutDashboard, label: 'Dashboard'       },
@@ -21,6 +22,7 @@ const NAV = [
 export default function AppShell() {
   const location = useLocation();
   const activeLabel = NAV.find((n) => location.pathname.startsWith(n.to))?.label ?? 'Dashboard';
+  const { messages, handleCommand, isProcessing } = useAssistantAgent();
 
   return (
     <div className="flex h-screen bg-surface-base overflow-hidden bg-mesh">
@@ -146,7 +148,11 @@ export default function AppShell() {
       </div>
 
       {/* Global floating AI assistant — visible on all pages */}
-      <FloatingAssistant />
+      <FloatingAssistant
+        messages={messages}
+        onUserMessage={handleCommand}
+        isProcessing={isProcessing}
+      />
     </div>
   );
 }
