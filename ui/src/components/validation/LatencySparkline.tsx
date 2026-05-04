@@ -1,0 +1,37 @@
+import { LineChart, Line, ResponsiveContainer, Tooltip } from 'recharts';
+
+export default function LatencySparkline({ latencies }: { latencies: number[] }) {
+  if (latencies.length === 0) {
+    return <div className="text-xs text-slate-300 text-center">—</div>;
+  }
+
+  const data = latencies.map((v, i) => ({ i, v }));
+  const max = Math.max(...latencies);
+  const color = max > 100 ? '#f59e0b' : '#10b981';
+
+  return (
+    <div className="w-full h-8">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data}>
+          <Line
+            type="monotone"
+            dataKey="v"
+            stroke={color}
+            strokeWidth={2}
+            dot={{ r: 3, fill: color }}
+            isAnimationActive={false}
+          />
+          <Tooltip
+            content={({ active, payload }) =>
+              active && payload?.[0] ? (
+                <div className="bg-white border border-slate-200 rounded px-2 py-1 text-xs shadow">
+                  {payload[0].value}ms
+                </div>
+              ) : null
+            }
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}

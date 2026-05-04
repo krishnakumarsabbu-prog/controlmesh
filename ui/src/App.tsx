@@ -1,0 +1,20 @@
+import { Routes, Route, Navigate } from 'react-router-dom';
+import AppShell from './components/layout/AppShell';
+import TopologyPage from './pages/TopologyPage';
+import MigrationPage from './pages/MigrationPage';
+import ValidationPage from './pages/ValidationPage';
+import AuditPage from './pages/AuditPage';
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<AppShell />}>
+        <Route index element={<Navigate to="/topology" replace />} />
+        <Route path="topology" element={<TopologyPage />} />
+        <Route path="migration" element={<MigrationPage />} />
+        <Route path="validation" element={<ValidationPage />} />
+        <Route path="audit" element={<AuditPage />} />
+      </Route>
+    </Routes>
+  );
+}
