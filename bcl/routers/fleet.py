@@ -1,16 +1,30 @@
+import json
+
 import structlog
 from fastapi import APIRouter, HTTPException
 
 from bcl.mq.registry import get_registry
+from bcl.state.redis_store import get_redis_pool
 
 log = structlog.get_logger()
 router = APIRouter(tags=["fleet"])
 
+_FLEET_CACHE_KEY = "cache:fleet:list"
+_FLEET_CACHE_TTL = 10  # seconds
+
 
 @router.get("/fleet")
 async def list_fleet():
+    try:
+        r = await get_redis_pool()
+        cached = await r.get(_FLEET_CACHE_KEY)
+        if cached:
+            return json.loads(cached)
+    except Exception:
+        pass
+
     registry = get_registry()
-    return {
+    result = {
         "queue_managers": [
             {
                 "name": qm.name,
@@ -21,6 +35,14 @@ async def list_fleet():
             for qm in registry.list_qms()
         ]
     }
+
+    try:
+        r = await get_redis_pool()
+        await r.setex(_FLEET_CACHE_KEY, _FLEET_CACHE_TTL, json.dumps(result))
+    except Exception:
+        pass
+
+    return result
 
 
 @router.get("/fleet/{qm_name}/status")

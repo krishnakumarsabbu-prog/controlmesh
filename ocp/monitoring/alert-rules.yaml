@@ -1,0 +1,77 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: mq-migration-alerts
+  namespace: mq-hackathon
+  labels:
+    role: alert-rules
+spec:
+  groups:
+  - name: mq-migration
+    rules:
+    - alert: QMNotReachable
+      expr: mq_qm_connected == 0
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "QM {{ $labels.qm_name }} unreachable for 2 minutes"
+        description: "Queue manager {{ $labels.qm_name }} has been unreachable for more than 2 minutes. Migrations may be blocked."
+
+    - alert: MigrationStuck
+      expr: |
+        time() - migration_last_transition_timestamp > 600
+        and migration_state != "MIGRATED"
+        and migration_state != "ROLLED_BACK"
+        and migration_state != "IDLE"
+      for: 0m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Migration for {{ $labels.app_id }} stuck for >10 minutes"
+        description: "Migration {{ $labels.app_id }} has been in state {{ $labels.migration_state }} for over 10 minutes without a transition."
+
+    - alert: BCLHighLatency
+      expr: histogram_quantile(0.99, rate(request_latency_seconds_bucket[5m])) > 1
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "BCL p99 latency above 1s"
+        description: "The 99th-percentile request latency has exceeded 1 second for 5 consecutive minutes."
+
+    - alert: StuckMessages
+      expr: increase(mq_stuck_messages_total[5m]) > 0
+      for: 0m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Stuck messages detected on {{ $labels.qm_name }}/{{ $labels.queue_name }}"
+        description: "New stuck messages have accumulated on queue {{ $labels.queue_name }} of QM {{ $labels.qm_name }}."
+
+    - alert: ValidationFailureRate
+      expr: rate(validation_failures_total[10m]) > 0.1
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "High validation failure rate — check MQ flows"
+        description: "Validation failure rate has exceeded 0.1/s for 5 minutes. MQ topology or connectivity may be degraded."
+
+    - alert: BCLPodNotReady
+      expr: kube_pod_status_ready{namespace="mq-hackathon", pod=~"bcl-gateway.*"} == 0
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "BCL Gateway pod {{ $labels.pod }} is not ready"
+        description: "BCL Gateway pod {{ $labels.pod }} has been in a non-ready state for more than 1 minute."
+
+    - alert: RedisConnectionsFull
+      expr: redis_connected_clients > 18
+      for: 2m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Redis connection pool near capacity"
+        description: "Redis has {{ $value }} connected clients, approaching the pool limit of 20."

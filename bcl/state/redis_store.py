@@ -10,20 +10,24 @@ import structlog
 log = structlog.get_logger()
 
 _REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
-_redis: Optional[aioredis.Redis] = None
+_pool: Optional[aioredis.Redis] = None
 
 
-async def _get_redis() -> aioredis.Redis:
-    global _redis
-    if _redis is None:
-        _redis = await aioredis.from_url(
+async def get_redis_pool() -> aioredis.Redis:
+    global _pool
+    if _pool is None:
+        _pool = await aioredis.from_url(
             _REDIS_URL,
-            encoding="utf-8",
+            max_connections=20,
             decode_responses=True,
             socket_timeout=5.0,
             socket_connect_timeout=5.0,
         )
-    return _redis
+    return _pool
+
+
+async def _get_redis() -> aioredis.Redis:
+    return await get_redis_pool()
 
 
 class RedisStore:

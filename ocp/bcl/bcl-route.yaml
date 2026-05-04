@@ -1,0 +1,16 @@
+# OpenShift Route for BCL Gateway with TLS edge termination.
+# Redirects HTTP to HTTPS.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: bcl-route
+  namespace: mq-hackathon
+spec:
+  to:
+    kind: Service
+    name: bcl-gateway-svc
+  port:
+    targetPort: 8000
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

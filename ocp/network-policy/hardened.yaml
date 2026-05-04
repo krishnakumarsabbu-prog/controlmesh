@@ -1,0 +1,66 @@
+# Hardened network policies for mq-hackathon namespace.
+# BCL can reach MQ pods on ports 9443 and 1414.
+# UI can reach BCL on 8000.
+# Redis is accessible only by BCL.
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: bcl-to-mq
+  namespace: mq-hackathon
+spec:
+  podSelector:
+    matchLabels:
+      app: mq-fleet
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: bcl-gateway
+    ports:
+    - port: 9443
+      protocol: TCP
+    - port: 1414
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ui-to-bcl
+  namespace: mq-hackathon
+spec:
+  podSelector:
+    matchLabels:
+      app: bcl-gateway
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: mq-ui
+    ports:
+    - port: 8000
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: bcl-to-redis
+  namespace: mq-hackathon
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: bcl-gateway
+    ports:
+    - port: 6379
+      protocol: TCP

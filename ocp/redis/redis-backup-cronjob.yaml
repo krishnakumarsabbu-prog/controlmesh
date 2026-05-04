@@ -1,0 +1,58 @@
+# Redis RDB backup CronJob — runs every 30 minutes.
+# Saves snapshot to a PVC mounted at /backup.
+# Requires:
+#   - PersistentVolumeClaim named redis-backup-pvc in mq-hackathon
+#   - Secret named redis-creds with key "password"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-backup-pvc
+  namespace: mq-hackathon
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: redis-backup
+  namespace: mq-hackathon
+spec:
+  schedule: "*/30 * * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: backup
+            image: redis:7-alpine
+            command:
+            - sh
+            - -c
+            - |
+              redis-cli -h redis-svc \
+                -a "$REDIS_PASSWORD" \
+                --no-auth-warning \
+                --rdb /backup/redis-$(date +%Y%m%d-%H%M).rdb && \
+              echo "Backup complete. Pruning files older than 24h." && \
+              find /backup -name "redis-*.rdb" -mmin +1440 -delete
+            env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-creds
+                  key: password
+            volumeMounts:
+            - name: backup-storage
+              mountPath: /backup
+          restartPolicy: OnFailure
+          volumes:
+          - name: backup-storage
+            persistentVolumeClaim:
+              claimName: redis-backup-pvc
