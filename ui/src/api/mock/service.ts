@@ -1,4 +1,4 @@
-import type { MigrationRecord, MigrationState, MigrationPlanStep, ValidationResult, ValidationSimResult, MigrationPlanResponse, TopologyChannel, RollbackStep, TopologySnapshot } from '../../types';
+import type { MigrationRecord, MigrationState, MigrationPlanStep, ValidationResult, ValidationSimResult, MigrationPlanResponse, TopologyChannel, RollbackStep, TopologySnapshot, SystemValidationResult, SystemValidationQM, SystemValidationChannel } from '../../types';
 import {
   MOCK_FLEET,
   MOCK_MIGRATIONS,
@@ -414,6 +414,81 @@ export const mockApi = {
     const errors = hasErrors ? Math.floor(Math.random() * 10) + 1 : 0;
     const received = sent - errors;
     return { sent, received, errors, passed: errors === 0, timestamp: Date.now() };
+  },
+
+  async runSystemValidation(
+    queueManagers: SystemValidationQM[],
+    channels: SystemValidationChannel[],
+  ): Promise<SystemValidationResult> {
+    await delay(700);
+    const QM_PATTERN = /^QM[._][A-Z]+[._][A-Z0-9]+$/;
+    const violations: SystemValidationResult['violations'] = [];
+
+    const qmNames = new Set(queueManagers.map((q) => q.name));
+
+    for (const qm of queueManagers) {
+      if (!QM_PATTERN.test(qm.name)) {
+        violations.push({
+          rule: 'QM_NAMING_CONVENTION',
+          severity: 'ERROR',
+          detail: `Queue manager '${qm.name}' does not match required pattern QM_APP_X (e.g. QM_APP1, QM_SRC_A)`,
+          entity: qm.name,
+        });
+      }
+      const hasDlq = qm.queues.some(
+        (q) => q.toUpperCase().endsWith('.DLQ') || q.toUpperCase().endsWith('_DLQ') || q.toUpperCase().includes('DEAD.LETTER'),
+      );
+      if (!hasDlq) {
+        violations.push({
+          rule: 'DLQ_REQUIRED',
+          severity: 'ERROR',
+          detail: `Queue manager '${qm.name}' has no Dead Letter Queue. Add a queue ending in .DLQ or _DLQ.`,
+          entity: qm.name,
+        });
+      }
+    }
+
+    for (const ch of channels) {
+      if (ch.source_qm && !qmNames.has(ch.source_qm)) {
+        violations.push({
+          rule: 'CHANNEL_UNKNOWN_QM',
+          severity: 'ERROR',
+          detail: `Channel '${ch.name}' references unknown queue manager '${ch.source_qm}' in source_qm`,
+          entity: ch.name,
+        });
+      }
+      if (ch.target_qm && !qmNames.has(ch.target_qm)) {
+        violations.push({
+          rule: 'CHANNEL_UNKNOWN_QM',
+          severity: 'ERROR',
+          detail: `Channel '${ch.name}' references unknown queue manager '${ch.target_qm}' in target_qm`,
+          entity: ch.name,
+        });
+      }
+    }
+
+    const connectedQMs = new Set([
+      ...channels.map((c) => c.source_qm),
+      ...channels.map((c) => c.target_qm),
+    ]);
+    for (const qm of queueManagers) {
+      if (qmNames.size > 1 && !connectedQMs.has(qm.name)) {
+        violations.push({
+          rule: 'CHANNEL_MISSING',
+          severity: 'WARNING',
+          detail: `Queue manager '${qm.name}' has no channels connecting it to other QMs.`,
+          entity: qm.name,
+        });
+      }
+    }
+
+    const errors = violations.filter((v) => v.severity === 'ERROR').length;
+    const warnings = violations.filter((v) => v.severity === 'WARNING').length;
+    return {
+      valid: errors === 0,
+      violations,
+      summary: { queue_managers: queueManagers.length, channels: channels.length, errors, warnings },
+    };
   },
 
   getPlanSteps(appId: string): MigrationPlanStep[] | null {

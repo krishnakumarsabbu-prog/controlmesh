@@ -3,6 +3,7 @@ import { ShieldCheck } from 'lucide-react';
 import ValidationBadge from '../components/validation/ValidationBadge';
 import LatencySparkline from '../components/validation/LatencySparkline';
 import ValidationSimulator from '../components/validation/ValidationSimulator';
+import SystemValidationPanel from '../components/validation/SystemValidationPanel';
 import LoadingSpinner from '../components/shared/LoadingSpinner';
 import { fetchValidationHistory } from '../api/validation';
 import type { ValidationResult } from '../types';
@@ -54,11 +55,10 @@ export default function ValidationPage() {
           </span>
         </div>
       </div>
-      {/* Simulation panel */}
-      <ValidationSimulator />
+      {/* System policy validation */}
+      <SystemValidationPanel />
 
-
-      {/* Simulation panel */}
+      {/* Message flow simulation */}
       <ValidationSimulator />
 
       {/* Matrix table */}

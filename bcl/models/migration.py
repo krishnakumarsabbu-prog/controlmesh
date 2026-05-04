@@ -74,3 +74,21 @@ class AgentValidateRequest(BaseModel):
     qm_name: str
     queue_name: str
     phase: str  # BASELINE | POST_REWIRE | FINAL
+
+
+class SystemValidationRequest(BaseModel):
+    queue_managers: list[dict[str, Any]]  # [{name, queues: [str], channels: [str]}]
+    channels: list[dict[str, Any]]        # [{name, source_qm, target_qm}]
+
+
+class SystemViolation(BaseModel):
+    rule: str
+    severity: str  # ERROR | WARNING
+    detail: str
+    entity: Optional[str] = None
+
+
+class SystemValidationResponse(BaseModel):
+    valid: bool
+    violations: list[SystemViolation]
+    summary: dict[str, int]

@@ -1,11 +1,18 @@
 import structlog
 from fastapi import APIRouter, Request
 
-from bcl.models.migration import AgentValidateRequest, ValidationRequest
+from bcl.models.migration import (
+    AgentValidateRequest,
+    ValidationRequest,
+    SystemValidationRequest,
+    SystemValidationResponse,
+    SystemViolation,
+)
 from bcl.policy.naming import validate_naming
 from bcl.policy.tls import check_tls_required
 from bcl.policy.mca import check_mca_authz
 from bcl.policy.dlq import check_dlq_configured
+from bcl.policy.system_rules import validate_system
 
 log = structlog.get_logger()
 router = APIRouter(tags=["validation"])
@@ -59,6 +66,59 @@ async def validate_operations(payload: ValidationRequest, request: Request):
             "invalid": sum(1 for r in results if not r["valid"]),
         },
     }
+
+
+@router.post("/validate/system", response_model=SystemValidationResponse)
+async def validate_system_rules(payload: SystemValidationRequest, request: Request):
+    """
+    Enforce enterprise readiness rules across a submitted topology:
+    - Every QM must have a DLQ
+    - QM names must follow QM_APP_X pattern
+    - Channels must exist between declared QMs
+    Returns HTTP 422 when hard violations (ERROR severity) are found.
+    """
+    trace_id = getattr(request.state, "trace_id", "unknown")
+    raw_violations = validate_system(
+        queue_managers=payload.queue_managers,
+        channels=payload.channels,
+    )
+    violations = [SystemViolation(**v) for v in raw_violations]
+    errors = [v for v in violations if v.severity == "ERROR"]
+    warnings = [v for v in violations if v.severity == "WARNING"]
+
+    log.info(
+        "system_validation",
+        trace_id=trace_id,
+        qm_count=len(payload.queue_managers),
+        channel_count=len(payload.channels),
+        errors=len(errors),
+        warnings=len(warnings),
+    )
+
+    response = SystemValidationResponse(
+        valid=len(errors) == 0,
+        violations=violations,
+        summary={
+            "queue_managers": len(payload.queue_managers),
+            "channels": len(payload.channels),
+            "errors": len(errors),
+            "warnings": len(warnings),
+        },
+    )
+
+    if errors:
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "SYSTEM_POLICY_VIOLATION",
+                "valid": False,
+                "violations": [v.model_dump() for v in violations],
+                "summary": response.summary,
+            },
+        )
+
+    return response
 
 
 @router.post("/validate/flow")

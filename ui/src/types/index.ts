@@ -160,6 +160,41 @@ export interface TopologySnapshot {
   channels: string[];
 }
 
+// ── System validation ─────────────────────────────────────────────────────────
+
+export type ViolationSeverity = 'ERROR' | 'WARNING';
+
+export interface SystemViolation {
+  rule: string;
+  severity: ViolationSeverity;
+  detail: string;
+  entity?: string;
+}
+
+export interface SystemValidationSummary {
+  queue_managers: number;
+  channels: number;
+  errors: number;
+  warnings: number;
+}
+
+export interface SystemValidationResult {
+  valid: boolean;
+  violations: SystemViolation[];
+  summary: SystemValidationSummary;
+}
+
+export interface SystemValidationQM {
+  name: string;
+  queues: string[];
+}
+
+export interface SystemValidationChannel {
+  name: string;
+  source_qm: string;
+  target_qm: string;
+}
+
 // ── SSE events ────────────────────────────────────────────────────────────────
 
 export interface SSEMigrationEvent {
