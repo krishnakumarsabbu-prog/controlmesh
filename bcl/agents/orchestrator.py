@@ -145,6 +145,7 @@ async def run_migration_step(
 
         result = _parse_orchestrator_result(result_text)
         await _apply_final_state(app_id, result, sm)
+        await sm.update_metadata(app_id, {"active_agent": None})
 
         duration = time.monotonic() - start_time
         status = result.get("status", "FAILED")
@@ -225,17 +226,23 @@ async def _emit_step_progress(app_id: str, tool_name: str, sm) -> None:
     from bcl.models.migration import MigrationState
 
     mapping = {
-        "provisioning_agent": MigrationState.PROVISIONING_TARGET,
-        "migration_agent": MigrationState.REWIRING,
-        "validation_agent": MigrationState.VALIDATING,
-        "rollback_agent": MigrationState.ROLLING_BACK,
+        "provisioning_agent": (MigrationState.PROVISIONING_TARGET, "Provisioning Agent"),
+        "migration_agent":    (MigrationState.REWIRING,            "Migration Agent"),
+        "validation_agent":   (MigrationState.VALIDATING,          "Validation Agent"),
+        "rollback_agent":     (MigrationState.ROLLING_BACK,        "Rollback Agent"),
     }
-    target_state = mapping.get(tool_name)
-    if target_state is None:
+    match = mapping.get(tool_name)
+    if match is None:
         return
+
+    target_state, agent_name = match
     try:
         await sm.transition(
-            app_id, target_state, {"triggered_by_tool": tool_name}
+            app_id, target_state, {
+                "triggered_by_tool": tool_name,
+                "active_agent": agent_name
+            }
         )
     except Exception:
-        pass  # Already in this state or invalid transition — both are fine
+        # If already in state, just update the active agent
+        await sm.update_metadata(app_id, {"active_agent": agent_name})

@@ -72,14 +72,21 @@ class MigrationStateMachine:
                 record.source_qm = metadata["source_qm"]
             if "target_qm" in metadata:
                 record.target_qm = metadata["target_qm"]
+            if "active_agent" in metadata:
+                record.active_agent = metadata["active_agent"]
 
+        from dataclasses import asdict
         await self.store.save_migration_record(record)
-        await self.store.publish_sse_event(
-            {
-                "event": "state_change",
-                "app_id": app_id,
-                "state": new_state.value,
-                "metadata": metadata or {},
-            }
-        )
+        await self.store.publish_sse_event(asdict(record))
+        return record
+    async def update_metadata(self, app_id: str, metadata: dict) -> MigrationRecord:
+        record = await self.get(app_id)
+        if "active_agent" in metadata:
+            record.active_agent = metadata["active_agent"]
+        if "error" in metadata:
+            record.error = metadata["error"]
+        
+        from dataclasses import asdict
+        await self.store.save_migration_record(record)
+        await self.store.publish_sse_event(asdict(record))
         return record

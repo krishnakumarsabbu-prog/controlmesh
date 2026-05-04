@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Bell, ShieldCheck, ShieldAlert, Activity, Settings, Type } from 'lucide-react';
+import { Bell, ShieldCheck, ShieldAlert, Activity, Settings, Type, Bot } from 'lucide-react';
 import { useFleet } from '../../hooks/useFleet';
 import { useAppStore } from '../../store/appStore';
 
@@ -11,7 +11,8 @@ interface TopBarProps {
 export default function TopBar({ pageTitle }: TopBarProps) {
   const [now, setNow] = useState(new Date());
   const { data: fleet } = useFleet();
-  const { theme, setTheme } = useAppStore();
+  const { theme, setTheme, migrations } = useAppStore();
+  const systemAgent = migrations['SYSTEM']?.active_agent;
 
   const cycleTheme = () => {
     const sequence: ('standard' | 'sentinel' | 'editorial')[] = ['standard', 'sentinel', 'editorial'];
@@ -98,6 +99,14 @@ export default function TopBar({ pageTitle }: TopBarProps) {
 
       {/* Right: live indicator, time, actions */}
       <div className="flex items-center gap-2">
+        {/* System Active Agent */}
+        {systemAgent && (
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider animate-pulse">
+             <Bot className="w-3 h-3" />
+             <span>{systemAgent}</span>
+          </div>
+        )}
+
         {/* Live indicator */}
         <div
           className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium"

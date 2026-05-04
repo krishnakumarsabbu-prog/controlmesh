@@ -324,3 +324,56 @@ async def delete_xmit_queue(qm_name: str, xmit_queue_name: str) -> dict:
 async def delete_remote_def(qm_name: str, remote_def_name: str) -> dict:
     """Remove remote queue definition from source QM after migration is confirmed."""
     return await delete_local_queue(qm_name, remote_def_name)
+
+
+async def scan_drift(qm_name: str) -> list[dict]:
+    """Scan a queue manager for manual configuration changes (Drift)."""
+    registry = get_registry()
+    qm = registry.get(qm_name)
+    
+    issues = []
+    # Mock check for MAXDEPTH drift
+    # In reality, this would query the MQ REST API and compare with the BCL's source of truth
+    if qm_name == "QM.APP1":
+        issues.append({
+            "id": "drift-001",
+            "qm": qm_name,
+            "object_type": "QUEUE",
+            "object_name": "Q.APP1.REQUEST.LOCAL",
+            "issue": "MAXDEPTH modified from 5000 to 100000",
+            "expected": "5000",
+            "actual": "100000",
+            "severity": "MEDIUM"
+        })
+    
+    # Mock check for SSL Cipher drift
+    if qm_name == "QM.SRC.A":
+        issues.append({
+            "id": "drift-002",
+            "qm": qm_name,
+            "object_type": "CHANNEL",
+            "object_name": "CHL.SRCA.SRCB",
+            "issue": "SSLCIPH changed manually to NULL_SHA",
+            "expected": "TLS_RSA_WITH_AES_256_CBC_SHA256",
+            "actual": "NULL_SHA",
+            "severity": "CRITICAL"
+        })
+        
+    return issues
+
+
+async def heal_drift(issue_id: str, qm_name: str, object_type: str, object_name: str, expected_value: str) -> dict:
+    """Revert a drifted object to its expected enterprise standard configuration."""
+    registry = get_registry()
+    qm = registry.get(qm_name)
+    
+    log.info("tool_heal_drift", issue_id=issue_id, qm=qm_name, obj=object_name)
+    
+    # In reality, this would call the appropriate 'update' method on the MQ client
+    # to re-apply the enterprise standard value.
+    if object_type == "QUEUE":
+        await qm.client.create_queue(qm.internal_name, object_name, {"maxDepth": int(expected_value)})
+    elif object_type == "CHANNEL":
+        await qm.client.create_channel(qm.internal_name, object_name, {"sslCipherSpec": expected_value})
+        
+    return {"status": "healed", "issue_id": issue_id, "object": object_name}

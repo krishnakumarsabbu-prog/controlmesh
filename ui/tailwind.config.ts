@@ -22,10 +22,10 @@ export default {
         },
         // Primary indigo — ControlMesh brand
         primary: {
-          DEFAULT: '#6366F1',
-          hover:   '#4F46E5',
-          dim:     'rgba(99,102,241,0.12)',
-          glow:    'rgba(99,102,241,0.35)',
+          DEFAULT: 'var(--accent-primary)',
+          hover:   'var(--accent-secondary)',
+          dim:     'var(--accent-glow)',
+          glow:    'var(--accent-glow)',
         },
         // Legacy accent aliases for backward compat
         accent: {
@@ -37,9 +37,9 @@ export default {
           cyan:         '#06B6D4',
         },
         // Semantic color ramps
-        success: { DEFAULT: '#22C55E', dim: 'rgba(34,197,94,0.12)',  glow: 'rgba(34,197,94,0.3)'  },
-        warning: { DEFAULT: '#F59E0B', dim: 'rgba(245,158,11,0.12)', glow: 'rgba(245,158,11,0.3)' },
-        danger:  { DEFAULT: '#EF4444', dim: 'rgba(239,68,68,0.12)',  glow: 'rgba(239,68,68,0.3)'  },
+        success: { DEFAULT: 'var(--accent-success)', dim: 'var(--accent-glow)',  glow: 'var(--accent-glow)'  },
+        warning: { DEFAULT: 'var(--accent-warning)', dim: 'var(--accent-glow)', glow: 'var(--accent-glow)' },
+        danger:  { DEFAULT: 'var(--accent-danger)',  dim: 'var(--accent-glow)',  glow: 'var(--accent-glow)'  },
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],

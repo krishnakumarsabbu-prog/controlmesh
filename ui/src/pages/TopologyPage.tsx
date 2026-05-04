@@ -143,8 +143,8 @@ export default function TopologyPage() {
           <Network className="w-5 h-5 text-text-secondary" />
           <h1 className="text-xl font-semibold text-text-primary">Topology View</h1>
           {totalChannels > 0 && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-900/30 border border-amber-800 text-xs font-medium text-amber-300">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-warning/20 border border-warning text-xs font-medium text-warning">
+              <span className="w-1.5 h-1.5 rounded-full bg-warning animate-pulse" />
               {rewiringCount} rewiring · {totalChannels} channel{totalChannels !== 1 ? 's' : ''} active
             </div>
           )}
@@ -154,7 +154,7 @@ export default function TopologyPage() {
           <button
             onClick={handleAnalyze}
             disabled={analysisState === 'loading'}
-            className="flex items-center gap-2 px-4 py-1.5 text-sm font-medium rounded-lg bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-2 px-4 py-1.5 text-sm font-medium rounded-lg bg-warning text-white hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
           >
             {analysisState === 'loading' ? (
               <>
@@ -171,7 +171,7 @@ export default function TopologyPage() {
           <button
             onClick={handleProvision}
             disabled={provisionState === 'loading'}
-            className="flex items-center gap-2 px-4 py-1.5 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-2 px-4 py-1.5 text-sm font-medium rounded-lg bg-primary text-white hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
           >
             <DatabaseZap className="w-4 h-4" />
             {provisionState === 'loading' ? 'Provisioning...' : 'Provision Source Topology'}
@@ -199,15 +199,15 @@ export default function TopologyPage() {
         <div
           className={`flex items-start justify-between gap-3 px-4 py-3 rounded-lg text-sm shrink-0 ${
             provisionState === 'success'
-              ? 'bg-emerald-900/20 border border-emerald-800 text-emerald-300'
-              : 'bg-red-900/20 border border-red-800 text-red-300'
+              ? 'bg-success/20 border border-success text-success'
+              : 'bg-danger/20 border border-danger text-danger'
           }`}
         >
           <div className="flex items-start gap-3">
             {provisionState === 'success' ? (
-              <CheckCircle className="w-4 h-4 mt-0.5 shrink-0 text-emerald-400" />
+              <CheckCircle className="w-4 h-4 mt-0.5 shrink-0 text-success" />
             ) : (
-              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-red-400" />
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-danger" />
             )}
             <span>{provisionMessage}</span>
           </div>
@@ -232,7 +232,7 @@ export default function TopologyPage() {
           </div>
           <button
             onClick={handleProvision}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-900/20 transition-all flex items-center gap-2"
+            className="px-6 py-2 bg-primary hover:opacity-90 text-white font-bold rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center gap-2"
           >
             <DatabaseZap className="w-4 h-4" />
             Provision Hackathon Topology
@@ -242,30 +242,30 @@ export default function TopologyPage() {
 
       {/* AI Analysis result panel */}
       {analysisResult && (
-        <div className="shrink-0 rounded-xl border border-red-800 bg-red-900/20 overflow-hidden">
-          <div className="flex items-start justify-between px-4 py-3 border-b border-red-800 bg-red-900/30">
+        <div className="shrink-0 rounded-xl border border-danger bg-danger/20 overflow-hidden">
+          <div className="flex items-start justify-between px-4 py-3 border-b border-danger bg-danger/30">
             <div className="flex items-center gap-2">
-              <ShieldAlert className="w-4 h-4 text-red-400" />
-              <span className="text-sm font-semibold text-red-300">AI Topology Analysis</span>
-              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-600 text-white tracking-wide">
+              <ShieldAlert className="w-4 h-4 text-danger" />
+              <span className="text-sm font-semibold text-danger">AI Topology Analysis</span>
+              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-danger text-white tracking-wide">
                 {analysisResult.riskLevel} RISK
               </span>
             </div>
             <button
               onClick={() => { setAnalysisResult(null); setAgentMessage(''); setAnalysisState('idle'); }}
-              className="text-red-500 hover:text-red-300 transition-colors"
+              className="text-danger hover:opacity-80 transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
           <div className="px-4 py-3 flex flex-col gap-2">
-            <p className="text-sm font-medium text-red-300">
+            <p className="text-sm font-medium text-danger">
               Reason: <span className="font-semibold">{analysisResult.reason}</span>
             </p>
             <ul className="flex flex-col gap-1">
               {analysisResult.details.map((d, i) => (
-                <li key={i} className="flex items-start gap-2 text-xs text-red-400">
-                  <span className="mt-0.5 w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                <li key={i} className="flex items-start gap-2 text-xs text-danger">
+                  <span className="mt-0.5 w-1.5 h-1.5 rounded-full bg-danger shrink-0" />
                   {d}
                 </li>
               ))}
@@ -273,10 +273,10 @@ export default function TopologyPage() {
           </div>
           {/* Agent message */}
           {agentMessage && (
-            <div className="flex items-center gap-2 px-4 py-2 border-t border-red-800 bg-red-900/20">
-              <MessageSquareWarning className="w-4 h-4 text-red-400 shrink-0" />
-              <span className="text-xs font-mono text-red-400">
-                <span className="font-semibold text-red-300">Agent:</span> {agentMessage}
+            <div className="flex items-center gap-2 px-4 py-2 border-t border-danger bg-danger/20">
+              <MessageSquareWarning className="w-4 h-4 text-danger shrink-0" />
+              <span className="text-xs font-mono text-danger">
+                <span className="font-semibold text-danger">Agent:</span> {agentMessage}
               </span>
             </div>
           )}
@@ -285,14 +285,14 @@ export default function TopologyPage() {
 
       {/* Transparent rewiring legend */}
       {activeChannels.length > 0 && (
-        <div className="flex items-center gap-4 px-4 py-2 rounded-lg bg-amber-900/20 border border-amber-800 shrink-0 text-xs text-amber-300">
+        <div className="flex items-center gap-4 px-4 py-2 rounded-lg bg-warning/20 border border-warning shrink-0 text-xs text-warning">
           <span className="font-semibold">Transparent Rewiring Active:</span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-amber-400" />
+            <span className="w-2 h-2 rounded-full bg-warning" />
             <span className="font-mono">REMOTE</span> queue defs shadow original names — apps unchanged
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-sm bg-blue-300" />
+            <span className="w-2 h-2 rounded-sm bg-primary/40" />
             <span className="font-mono">XMIT</span> transmission queues forward messages to target
           </span>
         </div>
@@ -329,8 +329,8 @@ export default function TopologyPage() {
           {/* Arrow with channel count */}
           <div className="flex items-center self-center shrink-0">
             <div className="flex flex-col items-center gap-1 text-surface-border">
-              <ArrowRight className={`w-6 h-6 ${activeChannels.length > 0 ? 'text-amber-400' : 'text-surface-muted'}`} />
-              <span className={`text-[10px] font-semibold uppercase tracking-wider ${activeChannels.length > 0 ? 'text-amber-400' : 'text-text-muted'}`}>
+              <ArrowRight className={`w-6 h-6 ${activeChannels.length > 0 ? 'text-warning' : 'text-surface-muted'}`} />
+              <span className={`text-[10px] font-semibold uppercase tracking-wider ${activeChannels.length > 0 ? 'text-warning' : 'text-text-muted'}`}>
                 {activeChannels.length > 0 ? `${activeChannels.length} chl` : 'migrate'}
               </span>
             </div>
@@ -339,7 +339,7 @@ export default function TopologyPage() {
           {/* Target */}
           <div className="flex-1 flex flex-col gap-2 min-w-0">
             <div className="flex items-center gap-2 px-1 shrink-0">
-              <span className="w-2 h-2 rounded-full bg-accent-emerald" />
+              <span className="w-2 h-2 rounded-full bg-success" />
               <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">
                 Target Topology
               </span>

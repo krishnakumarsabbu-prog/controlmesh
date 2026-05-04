@@ -43,6 +43,7 @@ class MigrationRecord:
     source_qm: str = ""
     target_qm: str = ""
     snapshot_key: str = ""
+    active_agent: Optional[str] = None
     started_at: Optional[str] = None
     updated_at: Optional[str] = None
     error: Optional[str] = None

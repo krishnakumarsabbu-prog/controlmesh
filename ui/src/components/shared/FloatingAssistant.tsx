@@ -46,10 +46,10 @@ function TypingText({ text, onDone }: { text: string; onDone?: () => void }) {
 
 // ── Message style tokens ──────────────────────────────────────────────────────
 const MSG_STYLE = {
-  info:    { text: 'text-sky-200',    dot: '#38BDF8', bg: 'rgba(56,189,248,0.07)'  },
-  success: { text: 'text-emerald-300',dot: '#34D399', bg: 'rgba(52,211,153,0.08)'  },
-  warning: { text: 'text-amber-300',  dot: '#FBBF24', bg: 'rgba(251,191,36,0.07)'  },
-  error:   { text: 'text-red-300',    dot: '#F87171', bg: 'rgba(248,113,113,0.07)' },
+  info:    { text: 'text-primary',    dot: 'var(--accent-primary)', bg: 'var(--accent-glow)' },
+  success: { text: 'text-success',    dot: 'var(--accent-success)', bg: 'var(--accent-glow)' },
+  warning: { text: 'text-warning',    dot: 'var(--accent-warning)', bg: 'var(--accent-glow)' },
+  error:   { text: 'text-danger',     dot: 'var(--accent-danger)',  bg: 'var(--accent-glow)' },
 } satisfies Record<AssistantMessage['type'], { text: string; dot: string; bg: string }>;
 
 interface Props {
@@ -114,12 +114,9 @@ export default function FloatingAssistant({ messages, onUserMessage, isProcessin
               exit={{ opacity: 0,    y: 6,  scale: 0.92 }}
               transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
               onClick={() => setOpen(true)}
-              className="cursor-pointer max-w-[220px] rounded-2xl rounded-br-sm px-3.5 py-2.5 select-none"
+              className="cursor-pointer max-w-[220px] rounded-2xl rounded-br-sm px-3.5 py-2.5 select-none bg-surface-card border-surface-border shadow-2xl glass"
               style={{
-                background: 'rgba(8,15,30,0.95)',
-                border: `1px solid ${MSG_STYLE[lastMsg.type].dot}40`,
-                boxShadow: `0 8px 28px rgba(0,0,0,0.5), 0 0 16px ${MSG_STYLE[lastMsg.type].dot}18`,
-                backdropFilter: 'blur(16px)',
+                border: `1px solid ${MSG_STYLE[lastMsg.type].dot}`,
               }}
             >
               <div className="flex items-start gap-2">
@@ -146,45 +143,25 @@ export default function FloatingAssistant({ messages, onUserMessage, isProcessin
               animate={{ opacity: 1, y: 0,  scale: 1    }}
               exit={{ opacity: 0,    y: 20, scale: 0.93 }}
               transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-              className="flex flex-col overflow-hidden"
+              className="flex flex-col overflow-hidden bg-surface-card border border-surface-border rounded-[22px] shadow-2xl glass"
               style={{
                 width: '310px',
                 maxHeight: '430px',
-                background: 'rgba(6,12,24,0.97)',
-                border: '1px solid rgba(14,165,233,0.25)',
-                borderRadius: '22px',
-                boxShadow:
-                  '0 28px 56px rgba(0,0,0,0.65), 0 8px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)',
-                backdropFilter: 'blur(24px)',
               }}
             >
               {/* Panel header */}
               <div
-                className="flex items-center justify-between px-4 py-3.5 shrink-0"
-                style={{
-                  borderBottom: '1px solid rgba(14,165,233,0.12)',
-                  background: 'rgba(4,10,20,0.7)',
-                }}
+                className="flex items-center justify-between px-4 py-3.5 shrink-0 border-b border-surface-border bg-surface-raised/50"
               >
                 <div className="flex items-center gap-3">
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(14,165,233,0.25) 0%, rgba(6,182,212,0.15) 100%)',
-                      border: '1px solid rgba(14,165,233,0.4)',
-                      boxShadow: '0 0 12px rgba(14,165,233,0.25)',
-                    }}
-                  >
-                    <BrainCircuit className="w-4 h-4 text-sky-400" />
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-primary/10 border border-primary/30 shadow-glow">
+                    <BrainCircuit className="w-4 h-4 text-primary" />
                   </div>
                   <div>
-                    <div className="text-[13px] font-semibold text-white leading-none">Migration Agent</div>
+                    <div className="text-[13px] font-semibold text-text-primary leading-none">Migration Agent</div>
                     <div className="flex items-center gap-1.5 mt-1">
-                      <span
-                        className="w-1.5 h-1.5 rounded-full"
-                        style={{ background: '#34D399', boxShadow: '0 0 5px rgba(52,211,153,0.9)' }}
-                      />
-                      <span className="text-[10px] font-medium tracking-wide" style={{ color: 'rgba(52,211,153,0.8)' }}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-success shadow-[0_0_5px_var(--accent-success)]" />
+                      <span className="text-[10px] font-medium tracking-wide text-success">
                         Active
                       </span>
                     </div>
@@ -192,8 +169,7 @@ export default function FloatingAssistant({ messages, onUserMessage, isProcessin
                 </div>
                 <button
                   onClick={() => setOpen(false)}
-                  className="w-7 h-7 flex items-center justify-center rounded-full transition-colors"
-                  style={{ background: 'rgba(255,255,255,0.06)', color: '#94A3B8' }}
+                  className="w-7 h-7 flex items-center justify-center rounded-full transition-colors bg-surface-overlay text-text-muted hover:text-text-primary"
                 >
                   <ChevronDown className="w-4 h-4" />
                 </button>
@@ -239,16 +215,16 @@ export default function FloatingAssistant({ messages, onUserMessage, isProcessin
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="flex gap-2 rounded-xl px-3 py-2 bg-sky-500/5"
+                    className="flex gap-2 rounded-xl px-3 py-2 bg-primary/5"
                   >
-                    <span className="mt-[6px] w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse shadow-[0_0_5px_#38BDF8]" />
-                    <p className="text-[11px] text-sky-400 italic">Thinking...</p>
+                    <span className="mt-[6px] w-1.5 h-1.5 rounded-full bg-primary animate-pulse shadow-[0_0_5px_var(--accent-primary)]" />
+                    <p className="text-[11px] text-primary italic">Thinking...</p>
                   </motion.div>
                 )}
               </div>
 
               {/* Input Area */}
-              <div className="px-3 pb-3 pt-1 border-t border-white/5 bg-black/20">
+              <div className="px-3 pb-3 pt-1 border-t border-surface-border bg-surface-raised/50">
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -263,13 +239,13 @@ export default function FloatingAssistant({ messages, onUserMessage, isProcessin
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     placeholder="Ask assistant or give command..."
-                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-[11px] text-white placeholder:text-slate-500 focus:outline-none focus:border-sky-500/50 transition-colors"
+                    className="flex-1 bg-surface-overlay border border-surface-border rounded-xl px-3 py-1.5 text-[11px] text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary/50 transition-colors"
                     disabled={isProcessing}
                   />
                   <button
                     type="submit"
                     disabled={!inputValue.trim() || isProcessing}
-                    className="p-1.5 rounded-lg bg-sky-600 text-white disabled:opacity-50 hover:bg-sky-500 transition-colors"
+                    className="p-1.5 rounded-lg bg-primary text-white disabled:opacity-50 hover:opacity-90 transition-colors"
                   >
                     <Send className="w-3.5 h-3.5" />
                   </button>
@@ -292,32 +268,26 @@ export default function FloatingAssistant({ messages, onUserMessage, isProcessin
               <>
                 <span
                   className="fa-ring-1 absolute inset-0 rounded-full pointer-events-none"
-                  style={{ border: '2px solid rgba(14,165,233,0.55)' }}
+                  style={{ border: '2px solid var(--accent-primary)' }}
                 />
                 <span
                   className="fa-ring-2 absolute inset-0 rounded-full pointer-events-none"
-                  style={{ border: '2px solid rgba(6,182,212,0.35)' }}
+                  style={{ border: '2px solid var(--accent-secondary)' }}
                 />
               </>
             )}
 
             <div
-              className="w-14 h-14 rounded-full flex items-center justify-center"
+              className="w-14 h-14 rounded-full flex items-center justify-center bg-primary"
               style={{
-                background: open
-                  ? 'linear-gradient(135deg, #0EA5E9, #06B6D4, #22D3EE)'
-                  : 'linear-gradient(135deg, #0EA5E9, #06B6D4, #67E8F9)',
                 padding: '2.5px',
                 boxShadow: open
-                  ? '0 0 0 4px rgba(6,182,212,0.15), 0 0 28px rgba(14,165,233,0.45), 0 8px 24px rgba(0,0,0,0.55)'
-                  : '0 0 0 3px rgba(14,165,233,0.1), 0 0 20px rgba(14,165,233,0.3), 0 6px 20px rgba(0,0,0,0.45)',
+                  ? '0 0 0 4px var(--accent-glow), 0 0 28px var(--accent-primary), 0 8px 24px rgba(0,0,0,0.55)'
+                  : '0 0 0 3px var(--accent-glow), 0 0 20px var(--accent-primary), 0 6px 20px rgba(0,0,0,0.45)',
               }}
             >
               <div
-                className="w-full h-full rounded-full flex items-center justify-center overflow-hidden"
-                style={{
-                  background: 'linear-gradient(150deg, #0C1D35 0%, #071628 55%, #050E1E 100%)',
-                }}
+                className="w-full h-full rounded-full flex items-center justify-center overflow-hidden bg-surface-base"
               >
                 <AnimatePresence mode="wait">
                   {open ? (
@@ -328,7 +298,7 @@ export default function FloatingAssistant({ messages, onUserMessage, isProcessin
                       exit={{ scale: 0, rotate: 90 }}
                       transition={{ duration: 0.18 }}
                     >
-                      <X className="w-5 h-5 text-sky-300" />
+                      <X className="w-5 h-5 text-text-primary" />
                     </motion.div>
                   ) : (
                     <motion.div
@@ -338,7 +308,7 @@ export default function FloatingAssistant({ messages, onUserMessage, isProcessin
                       exit={{ scale: 0 }}
                       transition={{ duration: 0.18 }}
                     >
-                      <BrainCircuit className="w-5 h-5 text-sky-400" />
+                      <BrainCircuit className="w-5 h-5 text-primary" />
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -352,8 +322,7 @@ export default function FloatingAssistant({ messages, onUserMessage, isProcessin
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   exit={{ scale: 0 }}
-                  className="absolute -top-1 -right-1 min-w-[20px] h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white px-1"
-                  style={{ background: '#22C55E', boxShadow: '0 0 10px rgba(34,197,94,0.8)' }}
+                  className="absolute -top-1 -right-1 min-w-[20px] h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white px-1 shadow-glow bg-success"
                 >
                   {unread}
                 </motion.span>

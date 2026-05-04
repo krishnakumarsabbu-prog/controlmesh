@@ -60,17 +60,7 @@ function MetricCard({ icon: Icon, label, value, trend, trendLabel, accentColor, 
 
   return (
     <div
-      className="relative flex-1 min-w-0 rounded-2xl p-5 cursor-default select-none transition-all duration-300"
-      style={{
-        background: 'linear-gradient(135deg, rgba(20,27,45,0.95) 0%, rgba(15,21,35,0.98) 100%)',
-        border: hovered
-          ? `1px solid ${accentColor}55`
-          : '1px solid rgba(30,42,61,0.9)',
-        boxShadow: hovered
-          ? `0 0 0 1px ${accentColor}22, 0 8px 32px rgba(0,0,0,0.4), 0 0 24px ${glowColor}`
-          : '0 2px 16px rgba(0,0,0,0.3)',
-        transform: hovered ? 'translateY(-2px)' : 'translateY(0)',
-      }}
+      className="relative flex-1 min-w-0 rounded-2xl p-5 cursor-default select-none transition-all duration-300 card card-hover"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -96,8 +86,7 @@ function MetricCard({ icon: Icon, label, value, trend, trendLabel, accentColor, 
 
       {/* Value */}
       <div
-        className="text-4xl font-bold tracking-tight leading-none mb-1.5 tabular-nums"
-        style={{ color: '#E5E7EB' }}
+        className="text-4xl font-bold tracking-tight leading-none mb-1.5 tabular-nums text-text-primary"
       >
         {count}
       </div>
@@ -148,22 +137,13 @@ function TimelineRow({ entry, isLast }: { entry: TimelineEntry; isLast: boolean 
 
   return (
     <div
-      className="group relative flex items-start gap-4 py-3.5 px-4 rounded-xl transition-all duration-200 cursor-default"
-      style={{
-        background: hovered ? 'rgba(255,255,255,0.025)' : 'transparent',
-      }}
+      className={`group relative flex items-start gap-4 py-3.5 px-4 rounded-xl transition-all duration-200 cursor-default ${hovered ? 'bg-surface-overlay/30' : ''}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       {/* Vertical connector */}
       {!isLast && (
-        <div
-          className="absolute left-[27px] top-[52px] w-px"
-          style={{
-            height: 'calc(100% - 16px)',
-            background: 'linear-gradient(180deg, rgba(30,42,61,0.9) 0%, rgba(30,42,61,0.3) 100%)',
-          }}
-        />
+        <div className="absolute left-[27px] top-[52px] w-px h-[calc(100%-16px)] bg-surface-border" />
       )}
 
       {/* Icon circle */}
@@ -323,28 +303,12 @@ export default function DashboardPage() {
       </div>
 
       {/* Activity Timeline */}
-      <div
-        className="rounded-2xl overflow-hidden"
-        style={{
-          background: 'linear-gradient(135deg, rgba(20,27,45,0.97) 0%, rgba(15,21,35,0.98) 100%)',
-          border: '1px solid rgba(30,42,61,0.9)',
-          boxShadow: '0 2px 16px rgba(0,0,0,0.3)',
-        }}
-      >
+      <div className="card">
         {/* Card header */}
-        <div
-          className="flex items-center justify-between px-5 py-4 border-b"
-          style={{ borderColor: 'rgba(30,42,61,0.9)' }}
-        >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-surface-border">
           <div className="flex items-center gap-3">
-            <div
-              className="w-7 h-7 rounded-lg flex items-center justify-center"
-              style={{
-                background: 'rgba(99,102,241,0.12)',
-                border: '1px solid rgba(99,102,241,0.22)',
-              }}
-            >
-              <RefreshCw className="w-3.5 h-3.5 text-indigo-400" strokeWidth={2} />
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-primary/10 border border-primary/20">
+              <RefreshCw className="w-3.5 h-3.5 text-primary" strokeWidth={2} />
             </div>
             <div>
               <div className="text-sm font-semibold text-text-primary">Activity Timeline</div>
@@ -353,18 +317,8 @@ export default function DashboardPage() {
           </div>
 
           {/* Live badge */}
-          <div
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
-            style={{
-              background: 'rgba(34,197,94,0.1)',
-              border: '1px solid rgba(34,197,94,0.25)',
-              color: '#22C55E',
-            }}
-          >
-            <span
-              className="w-1.5 h-1.5 rounded-full animate-pulse"
-              style={{ background: '#22C55E', boxShadow: '0 0 6px #22C55E' }}
-            />
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-success/10 border border-success/20 text-success text-[11px] font-semibold">
+            <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-success shadow-[0_0_6px_var(--accent-success)]" />
             Live
           </div>
         </div>
@@ -378,23 +332,16 @@ export default function DashboardPage() {
       </div>
 
       {/* Bottom system stats bar */}
-      <div
-        className="grid grid-cols-4 gap-px rounded-2xl overflow-hidden"
-        style={{
-          background: 'rgba(30,42,61,0.6)',
-          border: '1px solid rgba(30,42,61,0.9)',
-        }}
-      >
+      <div className="grid grid-cols-4 gap-px rounded-2xl overflow-hidden border border-surface-border bg-surface-border">
         {[
-          { label: 'Uptime', value: '99.98%', color: '#22C55E' },
-          { label: 'Avg Latency', value: '12 ms', color: '#06B6D4' },
-          { label: 'Messages / s', value: '3,241', color: '#6366F1' },
-          { label: 'Error Rate', value: '0.02%', color: '#F59E0B' },
+          { label: 'Uptime', value: '99.98%', color: 'var(--accent-success)' },
+          { label: 'Avg Latency', value: '12 ms', color: 'var(--accent-primary)' },
+          { label: 'Messages / s', value: '3,241', color: 'var(--accent-primary)' },
+          { label: 'Error Rate', value: '0.02%', color: 'var(--accent-warning)' },
         ].map(({ label, value, color }) => (
           <div
             key={label}
-            className="flex flex-col items-center justify-center py-4 gap-1 transition-colors duration-200 hover:bg-white/[0.025] cursor-default"
-            style={{ background: 'rgba(15,21,35,0.9)' }}
+            className="flex flex-col items-center justify-center py-4 gap-1 transition-colors duration-200 hover:bg-surface-overlay bg-surface-raised"
           >
             <span className="text-[11px] text-text-muted font-medium uppercase tracking-widest">{label}</span>
             <span className="text-lg font-bold tabular-nums" style={{ color }}>{value}</span>

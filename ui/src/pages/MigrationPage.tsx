@@ -125,7 +125,7 @@ export default function MigrationPage() {
                   <button
                     key={app.id}
                     onClick={() => handleSimulateFailure(app.id)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-900/40 hover:bg-amber-900/60 text-amber-300 rounded-lg text-xs font-medium transition-all duration-150 active:scale-95 border border-amber-800"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-warning/20 hover:opacity-90 text-warning rounded-lg text-xs font-medium transition-all duration-150 active:scale-95 border border-warning/30"
                   >
                     <AlertTriangle className="w-3 h-3" />
                     Fail {app.id}
@@ -149,7 +149,7 @@ export default function MigrationPage() {
                   <button
                     key={app.id}
                     onClick={() => handleRollback(app.id)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-900/30 hover:bg-red-900/50 text-red-300 rounded-lg text-xs font-medium transition-all duration-150 active:scale-95 border border-red-800"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-danger/20 hover:opacity-90 text-danger rounded-lg text-xs font-medium transition-all duration-150 active:scale-95 border border-danger/30"
                   >
                     <RotateCcw className="w-3 h-3" />
                     Roll back {app.id}
@@ -163,7 +163,7 @@ export default function MigrationPage() {
             <button
               onClick={migrateAll}
               disabled={bulkRunning || isLoading || autoRunning}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-accent-blue hover:bg-accent-blue-hover text-white rounded-lg text-xs font-medium transition-all duration-150 active:scale-95 disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:opacity-90 text-white rounded-lg text-xs font-medium transition-all duration-150 active:scale-95 disabled:opacity-50"
             >
               <Play className="w-3 h-3" />
               {bulkRunning ? 'Migrating all…' : 'Migrate all'}
@@ -177,8 +177,8 @@ export default function MigrationPage() {
             whileTap={{ scale: 0.97 }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 border ${
               autoRunning
-                ? 'bg-red-900/30 text-red-300 border-red-800 hover:bg-red-900/50'
-                : 'bg-emerald-900/40 text-emerald-300 border-emerald-800 hover:bg-emerald-900/60'
+                ? 'bg-danger/20 text-danger border-danger/30 hover:bg-danger/30'
+                : 'bg-success/20 text-success border-success/30 hover:bg-success/30'
             }`}
           >
             {autoRunning ? (
@@ -205,20 +205,20 @@ export default function MigrationPage() {
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-emerald-800 bg-emerald-900/20">
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-success/30 bg-success/10">
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
               >
-                <Zap className="w-4 h-4 text-emerald-400" />
+                <Zap className="w-4 h-4 text-success" />
               </motion.div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold text-emerald-300">Autonomous migration running</div>
-                <div className="text-xs text-emerald-500 mt-0.5">
+                <div className="text-sm font-semibold text-success">Autonomous migration running</div>
+                <div className="text-xs text-success/60 mt-0.5">
                   {currentApp ? `Processing ${currentApp} — agent narrating in assistant panel` : 'Sequencing apps…'}
                 </div>
               </div>
-              <div className="text-xs font-mono text-emerald-400 tabular-nums">{elapsedSeconds}s</div>
+              <div className="text-xs font-mono text-success tabular-nums">{elapsedSeconds}s</div>
             </div>
           </motion.div>
         )}

@@ -33,10 +33,10 @@ const APPS: AppMigration[] = [
 ];
 
 const PIPELINE_STAGES = [
-  { key: 'planning',   label: 'Planning',   icon: Sparkles,   color: '#38BDF8' },
-  { key: 'execution',  label: 'Execution',  icon: Cpu,        color: '#818CF8' },
-  { key: 'validation', label: 'Validation', icon: ShieldCheck, color: '#34D399' },
-  { key: 'rollback',   label: 'Rollback',   icon: GitBranch,  color: '#FB923C' },
+  { key: 'planning',   label: 'Planning',   icon: Sparkles,   color: 'var(--accent-primary)' },
+  { key: 'execution',  label: 'Execution',  icon: Cpu,        color: 'var(--accent-primary)' },
+  { key: 'validation', label: 'Validation', icon: ShieldCheck, color: 'var(--accent-success)' },
+  { key: 'rollback',   label: 'Rollback',   icon: GitBranch,  color: 'var(--accent-warning)' },
 ] as const;
 
 // Simulated narration script per stage per app
@@ -151,20 +151,16 @@ function FlowDiagram({
                 transition={isActive ? { duration: 1.8, repeat: Infinity, ease: 'easeInOut' } : {}}
                 className="relative w-16 h-16 rounded-2xl flex items-center justify-center"
                 style={{
-                  background: isDone
-                    ? `linear-gradient(135deg, ${stage.color}22, ${stage.color}0d)`
-                    : isActive
-                    ? `linear-gradient(135deg, ${stage.color}30, ${stage.color}18)`
+                  background: isDone || isActive
+                    ? `var(--accent-glow)`
                     : isFailed
-                    ? 'linear-gradient(135deg, rgba(248,113,113,0.2), rgba(248,113,113,0.08))'
-                    : 'rgba(255,255,255,0.03)',
-                  border: isDone
-                    ? `2px solid ${stage.color}55`
-                    : isActive
-                    ? `2px solid ${stage.color}80`
+                    ? 'var(--accent-glow)'
+                    : 'var(--surface-overlay)',
+                  border: isDone || isActive
+                    ? `2px solid ${stage.color}`
                     : isFailed
-                    ? '2px solid rgba(248,113,113,0.5)'
-                    : '2px solid rgba(255,255,255,0.07)',
+                    ? '2px solid var(--accent-danger)'
+                    : '2px solid var(--surface-border)',
                   transition: 'all 0.4s ease',
                 }}
               >
@@ -187,12 +183,12 @@ function FlowDiagram({
                   )}
                   {isFailed && (
                     <motion.span key="failed" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-                      <XCircle className="w-7 h-7 text-red-400" />
+                      <XCircle className="w-7 h-7 text-danger" />
                     </motion.span>
                   )}
                   {(isPending || isSkipped) && (
                     <motion.span key="pending" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-                      <Icon className="w-6 h-6" style={{ color: 'rgba(148,163,184,0.3)' }} />
+                      <Icon className="w-6 h-6 text-text-muted opacity-40" />
                     </motion.span>
                   )}
                 </AnimatePresence>
@@ -214,18 +210,17 @@ function FlowDiagram({
                 <div
                   className="text-xs font-semibold transition-all duration-300"
                   style={{
-                    color: isDone
-                      ? stage.color
-                      : isActive
+                    color: isDone || isActive
                       ? stage.color
                       : isFailed
-                      ? '#F87171'
-                      : 'rgba(148,163,184,0.4)',
+                      ? 'var(--accent-danger)'
+                      : 'var(--text-muted)',
+                    opacity: isPending || isSkipped ? 0.4 : 1
                   }}
                 >
                   {stage.label}
                 </div>
-                <div className="text-[10px] mt-0.5" style={{ color: 'rgba(148,163,184,0.3)' }}>
+                <div className="text-[10px] mt-0.5 text-text-muted opacity-40">
                   {isDone ? 'done' : isActive ? 'active' : isFailed ? 'failed' : isSkipped ? 'skipped' : 'waiting'}
                 </div>
               </div>
@@ -235,8 +230,7 @@ function FlowDiagram({
             {i < PIPELINE_STAGES.length - 1 && (
               <div className="flex items-center mx-2 mt-[-20px]">
                 <div
-                  className="h-px w-10 relative overflow-hidden"
-                  style={{ background: 'rgba(255,255,255,0.06)' }}
+                  className="h-px w-10 relative overflow-hidden bg-surface-border"
                 >
                   {/* Animated particle when running */}
                   {isRunning && (
@@ -264,8 +258,7 @@ function FlowDiagram({
                   )}
                 </div>
                 <ArrowRight
-                  className="w-3 h-3 shrink-0"
-                  style={{ color: 'rgba(148,163,184,0.2)' }}
+                  className="w-3 h-3 shrink-0 text-text-muted opacity-20"
                 />
               </div>
             )}
@@ -291,23 +284,22 @@ function AppFleetGrid({ apps }: { apps: AppMigration[] }) {
           <motion.div
             key={app.id}
             layout
-            className="rounded-xl px-3 py-2.5 flex flex-col gap-1"
+            className="rounded-xl px-3 py-2.5 flex flex-col gap-1 card"
             style={{
               background: isDone
-                ? 'rgba(16,185,129,0.07)'
+                ? 'var(--accent-glow)'
                 : isRunning
-                ? 'rgba(14,165,233,0.08)'
+                ? 'var(--accent-glow)'
                 : isFailed
-                ? 'rgba(239,68,68,0.07)'
-                : 'rgba(255,255,255,0.02)',
+                ? 'var(--accent-glow)'
+                : 'var(--surface-raised)',
               border: isDone
-                ? '1px solid rgba(16,185,129,0.25)'
+                ? '1px solid var(--accent-success)'
                 : isRunning
-                ? '1px solid rgba(14,165,233,0.3)'
+                ? '1px solid var(--accent-primary)'
                 : isFailed
-                ? '1px solid rgba(239,68,68,0.25)'
-                : '1px solid rgba(255,255,255,0.06)',
-              transition: 'all 0.3s ease',
+                ? '1px solid var(--accent-danger)'
+                : '1px solid var(--surface-border)',
             }}
           >
             <div className="flex items-center justify-between">
@@ -315,21 +307,21 @@ function AppFleetGrid({ apps }: { apps: AppMigration[] }) {
                 className="text-xs font-bold"
                 style={{
                   color: isDone
-                    ? '#34D399'
+                    ? 'var(--accent-success)'
                     : isRunning
-                    ? '#38BDF8'
+                    ? 'var(--accent-primary)'
                     : isFailed
-                    ? '#F87171'
-                    : 'rgba(255,255,255,0.35)',
+                    ? 'var(--accent-danger)'
+                    : 'var(--text-muted)',
                 }}
               >
                 {app.id}
               </span>
               <span>
-                {isDone && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
-                {isRunning && <Loader2 className="w-3.5 h-3.5 text-sky-400 animate-spin" />}
-                {isFailed && <XCircle className="w-3.5 h-3.5 text-red-400" />}
-                {isSkipped && <span className="text-[9px] text-slate-500">skip</span>}
+                {isDone && <CheckCircle2 className="w-3.5 h-3.5 text-success" />}
+                {isRunning && <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />}
+                {isFailed && <XCircle className="w-3.5 h-3.5 text-danger" />}
+                {isSkipped && <span className="text-[9px] text-text-muted">skip</span>}
                 {app.status === 'pending' && (
                   <span
                     className="w-2 h-2 rounded-full inline-block"
@@ -338,7 +330,7 @@ function AppFleetGrid({ apps }: { apps: AppMigration[] }) {
                 )}
               </span>
             </div>
-            <div className="text-[9px] font-mono text-slate-500 leading-snug">
+            <div className="text-[9px] font-mono text-text-muted leading-snug">
               {app.source} → {app.target}
             </div>
           </motion.div>
@@ -363,17 +355,17 @@ function AgentChat({ msgs, open, onToggle }: { msgs: ChatMsg[]; open: boolean; o
   }, [open, msgs.length]);
 
   const typeColors: Record<ChatMsg['type'], string> = {
-    info: '#38BDF8',
-    success: '#34D399',
-    warning: '#FB923C',
-    error: '#F87171',
+    info: 'var(--accent-primary)',
+    success: 'var(--accent-success)',
+    warning: 'var(--accent-warning)',
+    error: 'var(--accent-danger)',
   };
 
   const typeBg: Record<ChatMsg['type'], string> = {
-    info: 'rgba(56,189,248,0.07)',
-    success: 'rgba(52,211,153,0.07)',
-    warning: 'rgba(251,146,60,0.07)',
-    error: 'rgba(248,113,113,0.07)',
+    info: 'var(--accent-glow)',
+    success: 'var(--accent-glow)',
+    warning: 'var(--accent-glow)',
+    error: 'var(--accent-glow)',
   };
 
   return (
@@ -387,11 +379,10 @@ function AgentChat({ msgs, open, onToggle }: { msgs: ChatMsg[]; open: boolean; o
             exit={{ opacity: 0, y: 4 }}
             transition={{ duration: 0.2 }}
             onClick={onToggle}
-            className="cursor-pointer max-w-[280px] rounded-2xl rounded-br-sm px-3.5 py-2.5"
+            className="cursor-pointer max-w-[280px] rounded-2xl rounded-br-sm px-3.5 py-2.5 bg-surface-card"
             style={{
-              background: '#141B2D',
-              border: `1px solid ${typeColors[last.type]}30`,
-              boxShadow: `0 8px 24px rgba(0,0,0,0.45), 0 0 0 1px ${typeColors[last.type]}10`,
+              border: `1px solid ${typeColors[last.type]}`,
+              boxShadow: `0 8px 24px rgba(0,0,0,0.45)`,
             }}
           >
             <div className="flex items-start gap-2">
@@ -414,29 +405,21 @@ function AgentChat({ msgs, open, onToggle }: { msgs: ChatMsg[]; open: boolean; o
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.95 }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="rounded-2xl overflow-hidden flex flex-col"
+            className="rounded-2xl overflow-hidden flex flex-col bg-surface-card"
             style={{
               width: 320,
               maxHeight: 400,
-              background: '#141B2D',
-              border: '1px solid #1E2A3D',
+              border: '1px solid var(--surface-border)',
               boxShadow: '0 24px 48px rgba(0,0,0,0.5), 0 8px 16px rgba(0,0,0,0.4)',
             }}
           >
             {/* Header */}
             <div
-              className="flex items-center justify-between px-4 py-3 shrink-0"
-              style={{ borderBottom: '1px solid #1E2A3D', background: 'rgba(10,14,26,0.5)' }}
+              className="flex items-center justify-between px-4 py-3 shrink-0 border-b border-surface-border bg-surface-raised/50"
             >
               <div className="flex items-center gap-2.5">
-                <div
-                  className="w-7 h-7 rounded-xl flex items-center justify-center"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(129,140,248,0.2), rgba(99,102,241,0.1))',
-                    border: '1px solid rgba(129,140,248,0.3)',
-                  }}
-                >
-                  <Bot className="w-3.5 h-3.5 text-indigo-400" />
+                <div className="w-7 h-7 rounded-xl flex items-center justify-center bg-primary/10 border border-primary/30">
+                  <Bot className="w-3.5 h-3.5 text-primary" />
                 </div>
                 <div>
                   <div className="text-sm font-semibold text-white leading-none">Autonomous Agent</div>
@@ -444,10 +427,9 @@ function AgentChat({ msgs, open, onToggle }: { msgs: ChatMsg[]; open: boolean; o
                     <motion.span
                       animate={{ opacity: [1, 0.3, 1] }}
                       transition={{ duration: 1.2, repeat: Infinity }}
-                      className="w-1.5 h-1.5 rounded-full"
-                      style={{ background: '#22C55E', boxShadow: '0 0 4px rgba(34,197,94,0.7)' }}
+                      className="w-1.5 h-1.5 rounded-full bg-success shadow-[0_0_4px_var(--accent-success)]"
                     />
-                    <span className="text-[10px] text-slate-400">Narrating</span>
+                    <span className="text-[10px] text-text-muted">Narrating</span>
                   </div>
                 </div>
               </div>
@@ -495,21 +477,17 @@ function AgentChat({ msgs, open, onToggle }: { msgs: ChatMsg[]; open: boolean; o
         onClick={onToggle}
         whileHover={{ scale: 1.06 }}
         whileTap={{ scale: 0.94 }}
-        className="relative w-12 h-12 rounded-2xl flex items-center justify-center"
+        className="relative w-12 h-12 rounded-2xl flex items-center justify-center bg-primary text-white"
         style={{
-          background: open
-            ? 'linear-gradient(135deg, #4F46E5, #6366F1)'
-            : 'linear-gradient(135deg, #6366F1, #818CF8)',
-          boxShadow: '0 4px 16px rgba(99,102,241,0.45), 0 2px 4px rgba(0,0,0,0.4)',
-          border: '1px solid rgba(129,140,248,0.35)',
+          boxShadow: '0 4px 16px var(--accent-glow)',
+          border: '1px solid var(--accent-secondary)',
         }}
       >
         {msgs.length > 0 && !open && (
           <motion.span
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center text-white"
-            style={{ background: '#EF4444', border: '1.5px solid #0B0F1A' }}
+            className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center text-white bg-danger border-2 border-surface-base"
           >
             {msgs.length > 9 ? '9+' : msgs.length}
           </motion.span>
@@ -517,10 +495,9 @@ function AgentChat({ msgs, open, onToggle }: { msgs: ChatMsg[]; open: boolean; o
         {/* Pulse rings */}
         {msgs.length > 0 && !open && (
           <motion.span
-            className="absolute inset-0 rounded-2xl"
+            className="absolute inset-0 rounded-2xl border border-primary"
             animate={{ opacity: [0.6, 0], scale: [1, 1.5] }}
             transition={{ duration: 1.8, repeat: Infinity }}
-            style={{ border: '1px solid rgba(99,102,241,0.6)' }}
           />
         )}
         <AnimatePresence mode="wait">
@@ -548,17 +525,14 @@ function FinalBanner({ state }: { state: 'success' | 'failure' }) {
       initial={{ opacity: 0, scale: 0.9, y: 12 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 240, damping: 20, delay: 0.1 }}
-      className="rounded-2xl px-8 py-6 flex flex-col items-center gap-3 text-center"
+      className="rounded-2xl px-8 py-6 flex flex-col items-center gap-3 text-center card"
       style={{
         background: isSuccess
-          ? 'linear-gradient(135deg, rgba(16,185,129,0.12) 0%, rgba(5,150,105,0.06) 100%)'
-          : 'linear-gradient(135deg, rgba(239,68,68,0.12) 0%, rgba(185,28,28,0.06) 100%)',
+          ? 'var(--accent-glow)'
+          : 'var(--accent-glow)',
         border: isSuccess
-          ? '1px solid rgba(16,185,129,0.35)'
-          : '1px solid rgba(239,68,68,0.35)',
-        boxShadow: isSuccess
-          ? '0 0 40px rgba(16,185,129,0.1), inset 0 1px 0 rgba(52,211,153,0.08)'
-          : '0 0 40px rgba(239,68,68,0.1), inset 0 1px 0 rgba(248,113,113,0.08)',
+          ? '1px solid var(--accent-success)'
+          : '1px solid var(--accent-danger)',
       }}
     >
       <motion.div
@@ -566,15 +540,15 @@ function FinalBanner({ state }: { state: 'success' | 'failure' }) {
         transition={{ duration: 0.5, delay: 0.3 }}
       >
         {isSuccess ? (
-          <CheckCircle2 className="w-12 h-12 text-emerald-400" />
+          <CheckCircle2 className="w-12 h-12 text-success" />
         ) : (
-          <AlertTriangle className="w-12 h-12 text-red-400" />
+          <AlertTriangle className="w-12 h-12 text-danger" />
         )}
       </motion.div>
       <div>
         <div
           className="text-2xl font-bold tracking-tight"
-          style={{ color: isSuccess ? '#34D399' : '#F87171' }}
+          style={{ color: isSuccess ? 'var(--accent-success)' : 'var(--accent-danger)' }}
         >
           {isSuccess ? 'MIGRATION SUCCESS' : 'MIGRATION FAILED'}
         </div>
@@ -749,15 +723,8 @@ export default function AutonomousModePage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
-          <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-            style={{
-              background: 'linear-gradient(135deg, rgba(129,140,248,0.25), rgba(99,102,241,0.12))',
-              border: '1px solid rgba(129,140,248,0.35)',
-              boxShadow: '0 0 20px rgba(99,102,241,0.15)',
-            }}
-          >
-            <Cpu className="w-5 h-5 text-indigo-400" />
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-primary/10 border border-primary/30 shadow-glow">
+            <Cpu className="w-5 h-5 text-primary" />
           </div>
           <div>
             <h1 className="text-lg font-semibold text-white leading-tight flex items-center gap-2">
@@ -766,12 +733,7 @@ export default function AutonomousModePage() {
                 <motion.span
                   animate={{ opacity: [1, 0.4, 1] }}
                   transition={{ duration: 1.2, repeat: Infinity }}
-                  className="text-xs font-medium px-2 py-0.5 rounded-full"
-                  style={{
-                    background: 'rgba(129,140,248,0.12)',
-                    border: '1px solid rgba(129,140,248,0.3)',
-                    color: '#818CF8',
-                  }}
+                  className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 border border-primary/30 text-primary"
                 >
                   LIVE
                 </motion.span>
@@ -784,12 +746,7 @@ export default function AutonomousModePage() {
         <div className="flex items-center gap-3">
           {running && (
             <div
-              className="flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 rounded-lg tabular-nums"
-              style={{
-                background: 'rgba(129,140,248,0.07)',
-                border: '1px solid rgba(129,140,248,0.2)',
-                color: '#818CF8',
-              }}
+              className="flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 rounded-lg tabular-nums bg-primary/10 border border-primary/30 text-primary"
             >
               <Activity className="w-3.5 h-3.5" />
               {String(Math.floor(elapsed / 60)).padStart(2, '0')}:{String(elapsed % 60).padStart(2, '0')}

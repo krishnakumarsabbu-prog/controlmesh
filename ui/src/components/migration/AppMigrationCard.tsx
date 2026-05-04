@@ -201,6 +201,14 @@ export default function AppMigrationCard({ app, record, onMigrate, onRollback, i
           <div className="text-[11px] text-text-muted font-mono truncate">
             {app.source} → {app.target}
           </div>
+          {record?.active_agent && (
+            <div className="mt-1 flex items-center gap-1.5 animate-pulse">
+              <div className="w-1.5 h-1.5 rounded-full bg-primary shadow-glow" />
+              <span className="text-[10px] font-bold text-primary uppercase tracking-wider">
+                {record.active_agent}
+              </span>
+            </div>
+          )}
         </div>
         <StateBadge state={state} />
         <div className="flex items-center gap-1 ml-1 shrink-0">

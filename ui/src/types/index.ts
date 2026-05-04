@@ -86,6 +86,7 @@ export interface MigrationRecord {
   state: MigrationState;
   source_qm: string;
   target_qm: string;
+  active_agent?: string;
   started_at?: string;
   completed_at?: string;
   error?: string;
