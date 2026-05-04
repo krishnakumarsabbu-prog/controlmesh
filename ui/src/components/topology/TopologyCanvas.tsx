@@ -23,7 +23,6 @@ import type { QueueManagerFleet, MigrationRecord, TopologyChannel } from '../../
 const nodeTypes = { qmNode: QMNode, appNode: AppNode, queueNode: QueueNode };
 const edgeTypes = { channelEdge: ChannelEdge };
 
-// Apps per source QM for demo purposes
 const SOURCE_QM_APPS: Record<string, string[]> = {
   'QM.SRC.A': ['APP1', 'APP2'],
   'QM.SRC.B': ['APP3', 'APP4', 'APP5', 'APP6'],
@@ -72,7 +71,6 @@ function buildLayout(
   const nodes: Node[] = [];
   const edges: Edge[] = [];
 
-  // ── QM nodes ─────────────────────────────────────────────────────────────
   if (mode === 'source') {
     const sourceQMs = qms.filter((q) => q.role === 'source');
 
@@ -83,10 +81,9 @@ function buildLayout(
         .filter((m) => m.source_qm === qm.name)
         .map((m) => m.app_id);
 
-      const qmX = 260;
-      const qmY = qmIdx * 440 + 60;
+      const qmX = 280;
+      const qmY = qmIdx * 460 + 60;
 
-      // QM node
       nodes.push({
         id: qm.name,
         type: 'qmNode',
@@ -101,14 +98,13 @@ function buildLayout(
         } satisfies QMNodeData,
       });
 
-      // App nodes (left of QM)
       apps.forEach((appId, i) => {
         const migration = Object.values(migrations).find((m) => m.app_id === appId);
         const nodeId = `app-${appId}`;
         nodes.push({
           id: nodeId,
           type: 'appNode',
-          position: { x: 20, y: qmY + i * 80 + 20 },
+          position: { x: 20, y: qmY + i * 85 + 20 },
           data: {
             label: appId,
             sourceQM: qm.name,
@@ -120,20 +116,19 @@ function buildLayout(
           id: `e-${nodeId}-${qm.name}`,
           source: nodeId,
           target: qm.name,
-          type: 'default',
-          style: { stroke: '#93c5fd', strokeWidth: 1.5 },
-          markerEnd: { type: MarkerType.ArrowClosed, color: '#93c5fd' },
+          type: 'channelEdge',
+          data: { label: '', isRewiring: false },
+          markerEnd: { type: MarkerType.ArrowClosed, color: '#3b82f6' },
         });
       });
 
-      // Queue nodes (right of QM)
       const visibleQueues = queues.slice(0, 6);
       visibleQueues.forEach((q, i) => {
         const nodeId = `queue-${qm.name}-${q.name}`;
         nodes.push({
           id: nodeId,
           type: 'queueNode',
-          position: { x: 520, y: qmY + i * 68 + 10 },
+          position: { x: 540, y: qmY + i * 72 + 10 },
           data: {
             label: q.name,
             queueType: q.type,
@@ -145,20 +140,15 @@ function buildLayout(
           id: `e-${qm.name}-${nodeId}`,
           source: qm.name,
           target: nodeId,
-          type: 'default',
-          style: {
-            stroke: q.type === 'remote' ? '#fbbf24' : q.type === 'xmit' ? '#7dd3fc' : '#cbd5e1',
-            strokeWidth: 1.5,
-          },
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            color: q.type === 'remote' ? '#fbbf24' : q.type === 'xmit' ? '#7dd3fc' : '#cbd5e1',
+          type: 'channelEdge',
+          data: {
+            label: '',
+            isRewiring: q.type === 'xmit',
           },
         });
       });
     });
   } else {
-    // Target mode: QM nodes in 2-column grid with their queues to the right
     const targetQMs = qms.filter((q) => q.role === 'target');
     targetQMs.forEach((qm, i) => {
       const col = i % 2;
@@ -166,8 +156,8 @@ function buildLayout(
       const migrationState = getMigrationStateForQM(qm.name, 'target', migrations);
       const queues = queueDetails[qm.name] ?? [];
 
-      const qmX = col * 400 + 20;
-      const qmY = row * 240 + 40;
+      const qmX = col * 420 + 20;
+      const qmY = row * 260 + 40;
 
       nodes.push({
         id: qm.name,
@@ -183,14 +173,12 @@ function buildLayout(
         } satisfies QMNodeData,
       });
 
-      // Queue nodes to the right
-      const visibleQueues = queues.slice(0, 4);
-      visibleQueues.forEach((q, qi) => {
+      queues.slice(0, 4).forEach((q, qi) => {
         const nodeId = `queue-${qm.name}-${q.name}`;
         nodes.push({
           id: nodeId,
           type: 'queueNode',
-          position: { x: qmX + 240, y: qmY + qi * 56 },
+          position: { x: qmX + 250, y: qmY + qi * 60 },
           data: {
             label: q.name,
             queueType: q.type,
@@ -202,15 +190,13 @@ function buildLayout(
           id: `e-${qm.name}-${nodeId}`,
           source: qm.name,
           target: nodeId,
-          type: 'default',
-          style: { stroke: '#cbd5e1', strokeWidth: 1.5 },
-          markerEnd: { type: MarkerType.ArrowClosed, color: '#cbd5e1' },
+          type: 'channelEdge',
+          data: { label: '', isRewiring: false },
         });
       });
     });
   }
 
-  // Channel edges between QM nodes
   channels.forEach((ch) => {
     const sourceExists = nodes.some((n) => n.id === ch.sourceQM);
     const targetExists = nodes.some((n) => n.id === ch.targetQM);
@@ -230,8 +216,15 @@ function buildLayout(
 
 type AnyNodeData = QMNodeData | AppNodeData | QueueNodeData;
 
-export default function TopologyCanvas({ queueManagers, migrations, mode, queueDetails = {}, channels = [] }: Props) {
+export default function TopologyCanvas({
+  queueManagers,
+  migrations,
+  mode,
+  queueDetails = {},
+  channels = [],
+}: Props) {
   const [selectedNode, setSelectedNode] = useState<Node<AnyNodeData> | null>(null);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
 
   const { nodes: initialNodes, edges: initialEdges } = useMemo(
     () => buildLayout(queueManagers, migrations, mode, queueDetails, channels),
@@ -249,6 +242,49 @@ export default function TopologyCanvas({ queueManagers, migrations, mode, queueD
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(queueManagers), JSON.stringify(migrations), mode, JSON.stringify(queueDetails), JSON.stringify(channels)]);
 
+  // Compute connected node/edge IDs for the hovered or selected node
+  const focusId = hoveredNodeId ?? selectedNode?.id ?? null;
+
+  const connectedIds = useMemo(() => {
+    if (!focusId) return null;
+    const nodeIds = new Set<string>([focusId]);
+    const edgeIds = new Set<string>();
+    edges.forEach((e) => {
+      if (e.source === focusId || e.target === focusId) {
+        edgeIds.add(e.id);
+        nodeIds.add(e.source);
+        nodeIds.add(e.target);
+      }
+    });
+    return { nodeIds, edgeIds };
+  }, [focusId, edges]);
+
+  // Apply highlight/dim to nodes
+  const displayNodes = useMemo(() => {
+    if (!connectedIds) return nodes;
+    return nodes.map((n) => ({
+      ...n,
+      data: {
+        ...n.data,
+        highlighted: connectedIds.nodeIds.has(n.id) && n.id !== focusId,
+        dimmed: !connectedIds.nodeIds.has(n.id),
+      },
+    }));
+  }, [nodes, connectedIds, focusId]);
+
+  // Apply highlight/dim to edges
+  const displayEdges = useMemo(() => {
+    if (!connectedIds) return edges;
+    return edges.map((e) => ({
+      ...e,
+      data: {
+        ...e.data,
+        highlighted: connectedIds.edgeIds.has(e.id),
+        dimmed: !connectedIds.edgeIds.has(e.id),
+      },
+    }));
+  }, [edges, connectedIds]);
+
   const onInit = useCallback((instance: { fitView: () => void }) => {
     setTimeout(() => instance.fitView(), 100);
   }, []);
@@ -257,53 +293,85 @@ export default function TopologyCanvas({ queueManagers, migrations, mode, queueD
     setSelectedNode((prev) => (prev?.id === node.id ? null : node as Node<AnyNodeData>));
   }, []);
 
+  const onNodeMouseEnter = useCallback((_: React.MouseEvent, node: Node) => {
+    setHoveredNodeId(node.id);
+  }, []);
+
+  const onNodeMouseLeave = useCallback(() => {
+    setHoveredNodeId(null);
+  }, []);
+
   const onPaneClick = useCallback(() => {
     setSelectedNode(null);
   }, []);
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative w-full h-full" style={{ background: '#080b14' }}>
       <ReactFlow
-        nodes={nodes}
-        edges={edges}
+        nodes={displayNodes}
+        edges={displayEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         onInit={onInit}
         onNodeClick={onNodeClick}
+        onNodeMouseEnter={onNodeMouseEnter}
+        onNodeMouseLeave={onNodeMouseLeave}
         onPaneClick={onPaneClick}
         fitView
         fitViewOptions={{ padding: 0.2 }}
-        minZoom={0.2}
-        maxZoom={2}
+        minZoom={0.15}
+        maxZoom={2.5}
         proOptions={{ hideAttribution: true }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#e2e8f0" />
-        <Controls showInteractive={false} className="!bg-white !border-slate-200 !shadow-sm" />
+        <Background
+          variant={BackgroundVariant.Lines}
+          gap={40}
+          size={1}
+          color="rgba(100,116,139,0.08)"
+        />
+        <Background
+          id="dots"
+          variant={BackgroundVariant.Dots}
+          gap={40}
+          size={1.2}
+          color="rgba(100,116,139,0.18)"
+          offset={0}
+        />
+        <Controls
+          showInteractive={false}
+          className="!bg-[#0d1220]/90 !border-slate-700 !shadow-xl !rounded-xl overflow-hidden"
+          style={{ bottom: 16, right: 16, top: 'auto', left: 'auto' }}
+        />
         <MiniMap
           nodeColor={(n) => {
             if (n.type === 'appNode') return '#3b82f6';
             if (n.type === 'queueNode') {
               const t = (n.data as QueueNodeData)?.queueType;
-              return t === 'remote' ? '#fbbf24' : t === 'xmit' ? '#7dd3fc' : '#94a3b8';
+              return t === 'remote' ? '#fbbf24' : t === 'xmit' ? '#38bdf8' : '#475569';
             }
-            const state = (n.data as QMNodeData)?.migrationState ?? 'IDLE';
-            const colors: Record<string, string> = {
-              IDLE: '#94a3b8', SNAPSHOTTED: '#3b82f6',
-              PROVISIONING_TARGET: '#f59e0b', REWIRING: '#f59e0b',
-              VALIDATING: '#0ea5e9', MIGRATED: '#10b981',
-              ROLLING_BACK: '#ef4444', ROLLED_BACK: '#f97316',
-            };
-            return colors[state] ?? '#94a3b8';
+            return '#7c3aed';
           }}
-          className="!bg-white/80 !border-slate-200 !rounded-lg"
+          maskColor="rgba(8,11,20,0.6)"
+          className="!rounded-xl !overflow-hidden"
+          style={{
+            background: 'rgba(8,11,20,0.92)',
+            border: '1px solid rgba(100,116,139,0.25)',
+            bottom: 16,
+            right: 80,
+          }}
         />
       </ReactFlow>
 
       <TopologyLegend />
 
-      <NodeDetailsPanel node={selectedNode} onClose={() => setSelectedNode(null)} />
+      <NodeDetailsPanel
+        node={selectedNode}
+        edges={edges}
+        nodes={nodes}
+        onClose={() => setSelectedNode(null)}
+      />
     </div>
   );
 }
