@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useEffect } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -11,140 +11,141 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
-import { QMNode, type QMNodeData } from './QMNode';
+import { QMNode, type QMNodeData, type QueueEntry } from './QMNode';
 import { ChannelEdge } from './ChannelEdge';
 import TopologyLegend from './TopologyLegend';
-import type { QueueManagerFleet, MigrationRecord } from '../../types';
+import type { QueueManagerFleet, MigrationRecord, TopologyChannel } from '../../types';
 
 const nodeTypes = { qmNode: QMNode };
 const edgeTypes = { channelEdge: ChannelEdge };
 
-const APP_QUEUES: Record<string, string[]> = {
-  // Source QMs (legacy dot-notation)
-  'QM.SRC.A': ['APP1.REQUEST', 'APP2.REQUEST', 'APP3.REQUEST', 'APP1.REPLY', 'APP2.REPLY'],
-  'QM.SRC.B': ['APP4.REQUEST', 'APP5.REQUEST', 'APP6.REQUEST', 'APP4.REPLY', 'APP5.REPLY'],
-  // Source QMs (provisioned fleet names)
-  'QM1': ['APPA.REQUEST', 'APPB.REQUEST', 'APPC.REQUEST', 'APPA.REPLY', 'APPB.REPLY'],
-  'QM2': ['APPD.REQUEST', 'APPE.REQUEST', 'APPF.REQUEST', 'APPD.REPLY', 'APPE.REPLY'],
-  // Target QMs — generated topology
-  'QM_APP_A': ['APPA.REQUEST', 'APPA.REPLY', 'APPA.DLQ'],
-  'QM_APP_B': ['APPB.REQUEST', 'APPB.REPLY', 'APPB.DLQ'],
-  'QM_APP_C': ['APPC.REQUEST', 'APPC.REPLY', 'APPC.DLQ'],
-  'QM_APP_D': ['APPD.REQUEST', 'APPD.REPLY', 'APPD.DLQ'],
-  'QM_APP_E': ['APPE.REQUEST', 'APPE.REPLY', 'APPE.DLQ'],
-  'QM_APP_F': ['APPF.REQUEST', 'APPF.REPLY', 'APPF.DLQ'],
-};
-
 const APP_COUNTS: Record<string, number> = {
   'QM.SRC.A': 3, 'QM.SRC.B': 3,
   'QM1': 3, 'QM2': 3,
-  'QM_APP_A': 1, 'QM_APP_B': 1, 'QM_APP_C': 1,
-  'QM_APP_D': 1, 'QM_APP_E': 1, 'QM_APP_F': 1,
 };
+
+interface QMQueueMap {
+  [qmName: string]: QueueEntry[];
+}
 
 interface Props {
   queueManagers: QueueManagerFleet[];
   migrations: Record<string, MigrationRecord>;
   mode: 'source' | 'target';
+  queueDetails?: QMQueueMap;
+  channels?: TopologyChannel[];
 }
 
-function buildLayout(qms: QueueManagerFleet[], migrations: Record<string, MigrationRecord>, mode: 'source' | 'target') {
+function getMigrationStateForQM(
+  qmName: string,
+  role: 'source' | 'target',
+  migrations: Record<string, MigrationRecord>
+): MigrationRecord['state'] {
+  if (role === 'source') {
+    const appMigrations = Object.values(migrations).filter((m) => m.source_qm === qmName);
+    if (appMigrations.length === 0) return 'IDLE';
+    return (
+      appMigrations.find((m) => m.state === 'REWIRING')?.state
+      ?? appMigrations.find((m) => m.state === 'PROVISIONING_TARGET')?.state
+      ?? appMigrations.find((m) => m.state === 'VALIDATING')?.state
+      ?? appMigrations[0]?.state
+      ?? 'IDLE'
+    );
+  } else {
+    const migration = Object.values(migrations).find((m) => m.target_qm === qmName);
+    return migration?.state ?? 'IDLE';
+  }
+}
+
+function buildLayout(
+  qms: QueueManagerFleet[],
+  migrations: Record<string, MigrationRecord>,
+  mode: 'source' | 'target',
+  queueDetails: QMQueueMap,
+  channels: TopologyChannel[]
+) {
   const nodes: Node<QMNodeData>[] = [];
   const edges: Edge[] = [];
 
   if (mode === 'source') {
-    // 2 source QMs stacked vertically
     const sourceQMs = qms.filter((q) => q.role === 'source');
     sourceQMs.forEach((qm, i) => {
-      const appMigrations = Object.values(migrations).filter((m) => m.source_qm === qm.name);
-      const dominantState = appMigrations.length > 0
-        ? (appMigrations.find(m => m.state === 'REWIRING')?.state
-          ?? appMigrations.find(m => m.state === 'PROVISIONING_TARGET')?.state
-          ?? appMigrations[0]?.state
-          ?? 'IDLE')
-        : 'IDLE';
+      const migrationState = getMigrationStateForQM(qm.name, 'source', migrations);
+      const queues = queueDetails[qm.name] ?? [];
 
       nodes.push({
         id: qm.name,
         type: 'qmNode',
-        position: { x: 100, y: i * 260 + 60 },
+        position: { x: 100, y: i * 280 + 60 },
         data: {
           label: qm.name,
           role: 'source',
-          migrationState: dominantState,
-          appCount: APP_COUNTS[qm.name] ?? 0,
-          queues: APP_QUEUES[qm.name] ?? [],
+          migrationState,
+          appCount: APP_COUNTS[qm.name] ?? Object.values(migrations).filter((m) => m.source_qm === qm.name).length,
+          queues,
           isReachable: qm.status !== 'unreachable',
         },
       });
     });
   } else {
-    // 6 target QMs in 2 columns
     const targetQMs = qms.filter((q) => q.role === 'target');
     targetQMs.forEach((qm, i) => {
       const col = i % 2;
       const row = Math.floor(i / 2);
-      // Support both QM_APP_A and QM.APP1 naming conventions
-      const appId = qm.name.replace(/^QM[._](?:APP[._])?/, '');
-      const migration = Object.values(migrations).find((m) => m.target_qm === qm.name || m.app_id === appId);
+      const migrationState = getMigrationStateForQM(qm.name, 'target', migrations);
+      const queues = queueDetails[qm.name] ?? [];
 
       nodes.push({
         id: qm.name,
         type: 'qmNode',
-        position: { x: col * 240 + 40, y: row * 230 + 40 },
+        position: { x: col * 260 + 40, y: row * 250 + 40 },
         data: {
           label: qm.name,
           role: 'target',
-          migrationState: migration?.state ?? 'IDLE',
+          migrationState,
           appCount: APP_COUNTS[qm.name] ?? 1,
-          queues: APP_QUEUES[qm.name] ?? [],
+          queues,
           isReachable: qm.status !== 'unreachable',
         },
       });
     });
-
-    // Add edges between target QMs if they'd be connected via xmit
-    // (placeholder — real topology shows after rewiring)
   }
+
+  // Add channel edges for rewiring visualization
+  channels.forEach((ch) => {
+    const sourceExists = nodes.some((n) => n.id === ch.sourceQM);
+    const targetExists = nodes.some((n) => n.id === ch.targetQM);
+    if (sourceExists && targetExists) {
+      edges.push({
+        id: ch.id,
+        source: ch.sourceQM,
+        target: ch.targetQM,
+        type: 'channelEdge',
+        data: { label: ch.name, isRewiring: ch.isRewiring },
+      });
+    }
+  });
 
   return { nodes, edges };
 }
 
-export default function TopologyCanvas({ queueManagers, migrations, mode }: Props) {
+export default function TopologyCanvas({ queueManagers, migrations, mode, queueDetails = {}, channels = [] }: Props) {
   const { nodes: initialNodes, edges: initialEdges } = useMemo(
-    () => buildLayout(queueManagers, migrations, mode),
-    [queueManagers, migrations, mode]
+    () => buildLayout(queueManagers, migrations, mode, queueDetails, channels),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [JSON.stringify(queueManagers), JSON.stringify(migrations), mode, JSON.stringify(queueDetails), JSON.stringify(channels)]
   );
 
-  const [nodes, , onNodesChange] = useNodesState(initialNodes);
-  const [edges, , onEdgesChange] = useEdgesState(initialEdges);
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  // Sync nodes when migrations change
-  const syncedNodes = useMemo(() => {
-    return nodes.map((node) => {
-      const qm = queueManagers.find((q) => q.name === node.id);
-      if (!qm) return node;
-
-      let migrationState = node.data.migrationState;
-
-      if (mode === 'source') {
-        const appMigrations = Object.values(migrations).filter((m) => m.source_qm === qm.name);
-        if (appMigrations.length > 0) {
-          migrationState = appMigrations.find(m => m.state === 'REWIRING')?.state
-            ?? appMigrations.find(m => m.state === 'PROVISIONING_TARGET')?.state
-            ?? appMigrations.find(m => m.state === 'VALIDATING')?.state
-            ?? appMigrations[0]?.state
-            ?? 'IDLE';
-        }
-      } else {
-        const appId = qm.name.replace(/^QM[._](?:APP[._])?/, '');
-        const migration = Object.values(migrations).find((m) => m.target_qm === qm.name || m.app_id === appId);
-        migrationState = migration?.state ?? 'IDLE';
-      }
-
-      return { ...node, data: { ...node.data, migrationState, isReachable: qm.status !== 'unreachable' } };
-    });
-  }, [nodes, queueManagers, migrations, mode]);
+  // Sync nodes when data changes
+  useEffect(() => {
+    const { nodes: newNodes, edges: newEdges } = buildLayout(queueManagers, migrations, mode, queueDetails, channels);
+    setNodes(newNodes);
+    setEdges(newEdges);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(queueManagers), JSON.stringify(migrations), mode, JSON.stringify(queueDetails), JSON.stringify(channels)]);
 
   const onInit = useCallback((instance: { fitView: () => void }) => {
     setTimeout(() => instance.fitView(), 100);
@@ -153,7 +154,7 @@ export default function TopologyCanvas({ queueManagers, migrations, mode }: Prop
   return (
     <div className="relative w-full h-full">
       <ReactFlow
-        nodes={syncedNodes}
+        nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}

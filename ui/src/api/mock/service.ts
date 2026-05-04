@@ -1,10 +1,12 @@
-import type { MigrationRecord, MigrationState, ValidationResult, MigrationPlanResponse } from '../../types';
+import type { MigrationRecord, MigrationState, ValidationResult, MigrationPlanResponse, TopologyChannel } from '../../types';
 import {
   MOCK_FLEET,
   MOCK_MIGRATIONS,
   MOCK_AUDIT_EVENTS,
   MOCK_VALIDATION_HISTORY,
   MOCK_QUEUES,
+  MOCK_QUEUES_BY_STATE,
+  MOCK_CHANNELS,
 } from './data';
 
 const delay = (ms = 400) => new Promise((r) => setTimeout(r, ms));
@@ -181,5 +183,44 @@ export const mockApi = {
       if (m.state !== 'IDLE') callback(m);
     });
     return () => sseListeners.delete(callback);
+  },
+
+  // Returns queues with type info, reflecting current migration state for a QM
+  async getQueueDetails(qmName: string): Promise<Array<{ name: string; type: 'local' | 'remote' | 'xmit'; remoteQM?: string }>> {
+    await delay(150);
+    const byState = MOCK_QUEUES_BY_STATE[qmName];
+    if (!byState) {
+      // Target QMs — derive from MOCK_QUEUES, all local
+      const names = MOCK_QUEUES[qmName] ?? [];
+      return names.map((n) => ({ name: n, type: 'local' as const }));
+    }
+    // Pick the state that represents the most advanced active migration on this QM
+    const relevantMigrations = Object.values(migrations).filter(
+      (m) => m.source_qm === qmName
+    );
+    const dominantState = relevantMigrations.find((m) => m.state === 'REWIRING')?.state
+      ?? relevantMigrations.find((m) => m.state === 'MIGRATED')?.state
+      ?? relevantMigrations.find((m) => m.state === 'VALIDATING')?.state
+      ?? 'IDLE';
+    return byState[dominantState] ?? byState['IDLE'] ?? [];
+  },
+
+  // Returns active channels reflecting rewiring state
+  async getActiveChannels(): Promise<TopologyChannel[]> {
+    await delay(150);
+    // Only return channels for active or completed migrations
+    return MOCK_CHANNELS.filter((ch) => {
+      const relevantMigration = Object.values(migrations).find(
+        (m) => m.source_qm === ch.sourceQM && m.target_qm === ch.targetQM
+      );
+      if (!relevantMigration) return false;
+      const activeStates: MigrationState[] = ['REWIRING', 'VALIDATING', 'MIGRATED'];
+      return activeStates.includes(relevantMigration.state as MigrationState);
+    }).map((ch) => {
+      const migration = Object.values(migrations).find(
+        (m) => m.source_qm === ch.sourceQM && m.target_qm === ch.targetQM
+      );
+      return { ...ch, isRewiring: migration?.state === 'REWIRING' || migration?.state === 'VALIDATING' };
+    });
   },
 };

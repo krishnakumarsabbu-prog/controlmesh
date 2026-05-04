@@ -8,7 +8,17 @@ export interface Application {
 export interface Queue {
   id: string;
   name: string;
-  type: 'local' | 'remote';
+  type: 'local' | 'remote' | 'xmit';
+  remoteQM?: string;
+}
+
+export interface TopologyChannel {
+  id: string;
+  name: string;
+  sourceQM: string;
+  targetQM: string;
+  status: 'running' | 'stopped' | 'inactive';
+  isRewiring: boolean;
 }
 
 export interface QueueManager {

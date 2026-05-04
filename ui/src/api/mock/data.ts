@@ -1,4 +1,4 @@
-import type { MigrationRecord, Fleet, AuditEvent, ValidationResult } from '../../types';
+import type { MigrationRecord, Fleet, AuditEvent, ValidationResult, TopologyChannel } from '../../types';
 
 const now = Date.now();
 const t = (offsetSec: number) => now - offsetSec * 1000;
@@ -116,13 +116,77 @@ export const MOCK_VALIDATION_HISTORY: Record<string, ValidationResult[]> = {
   APP6: [],
 };
 
+// Queue definitions per QM, keyed by migration state context.
+// local = normal queue, remote = remote def shadowing local name (transparent routing), xmit = transmission queue
+export const MOCK_QUEUES_BY_STATE: Record<string, Record<string, Array<{ name: string; type: 'local' | 'remote' | 'xmit'; remoteQM?: string }>>> = {
+  'QM.SRC.A': {
+    IDLE:       [
+      { name: 'APP1.REQUEST.Q', type: 'local' },
+      { name: 'APP1.REPLY.Q',   type: 'local' },
+      { name: 'APP2.REQUEST.Q', type: 'local' },
+      { name: 'APP2.REPLY.Q',   type: 'local' },
+    ],
+    REWIRING:   [
+      { name: 'APP1.REQUEST.Q', type: 'remote', remoteQM: 'QM.APP1' },
+      { name: 'APP1.REPLY.Q',   type: 'remote', remoteQM: 'QM.APP1' },
+      { name: 'Q.SRCA.APP1.XMIT.XMIT', type: 'xmit' },
+      { name: 'APP2.REQUEST.Q', type: 'local' },
+      { name: 'APP2.REPLY.Q',   type: 'local' },
+    ],
+    MIGRATED:   [
+      { name: 'APP1.REQUEST.Q', type: 'remote', remoteQM: 'QM.APP1' },
+      { name: 'APP1.REPLY.Q',   type: 'remote', remoteQM: 'QM.APP1' },
+      { name: 'Q.SRCA.APP1.XMIT.XMIT', type: 'xmit' },
+      { name: 'APP2.REQUEST.Q', type: 'local' },
+      { name: 'APP2.REPLY.Q',   type: 'local' },
+    ],
+  },
+  'QM.SRC.B': {
+    IDLE:     [
+      { name: 'APP3.REQUEST.Q', type: 'local' },
+      { name: 'APP3.REPLY.Q',   type: 'local' },
+      { name: 'APP4.REQUEST.Q', type: 'local' },
+      { name: 'APP5.REQUEST.Q', type: 'local' },
+      { name: 'APP6.REQUEST.Q', type: 'local' },
+    ],
+    REWIRING: [
+      { name: 'APP3.REQUEST.Q', type: 'remote', remoteQM: 'QM.APP3' },
+      { name: 'APP3.REPLY.Q',   type: 'remote', remoteQM: 'QM.APP3' },
+      { name: 'Q.SRCB.APP3.XMIT.XMIT', type: 'xmit' },
+      { name: 'APP4.REQUEST.Q', type: 'local' },
+      { name: 'APP5.REQUEST.Q', type: 'local' },
+      { name: 'APP6.REQUEST.Q', type: 'local' },
+    ],
+  },
+};
+
 export const MOCK_QUEUES: Record<string, string[]> = {
   'QM.SRC.A': ['APP1.REQUEST.Q', 'APP1.REPLY.Q', 'APP2.REQUEST.Q', 'APP2.REPLY.Q'],
   'QM.SRC.B': ['APP3.REQUEST.Q', 'APP3.REPLY.Q', 'APP4.REQUEST.Q', 'APP5.REQUEST.Q', 'APP6.REQUEST.Q'],
-  'QM.APP1': ['APP1.REQUEST.Q', 'APP1.REPLY.Q'],
+  'QM.APP1': ['APP1.REQUEST.Q', 'APP1.REPLY.Q', 'APP1.DLQ'],
   'QM.APP2': [],
-  'QM.APP3': ['APP3.REQUEST.Q'],
+  'QM.APP3': ['APP3.REQUEST.Q', 'APP3.REPLY.Q', 'APP3.DLQ'],
   'QM.APP4': [],
   'QM.APP5': [],
   'QM.APP6': [],
 };
+
+// Channels that exist when a migration is in REWIRING or later state
+export const MOCK_CHANNELS: TopologyChannel[] = [
+  {
+    id: 'chl-srca-app1',
+    name: 'CHL.SRCA.APP1',
+    sourceQM: 'QM.SRC.A',
+    targetQM: 'QM.APP1',
+    status: 'running',
+    isRewiring: false,
+  },
+  {
+    id: 'chl-srcb-app3',
+    name: 'CHL.SRCB.APP3',
+    sourceQM: 'QM.SRC.B',
+    targetQM: 'QM.APP3',
+    status: 'running',
+    isRewiring: true,
+  },
+];

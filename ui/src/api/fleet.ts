@@ -1,6 +1,6 @@
 import { bclClient, IS_MOCK } from './client';
 import { mockApi } from './mock/service';
-import type { Fleet, QueueManagerFleet } from '../types';
+import type { Fleet, QueueManagerFleet, TopologyChannel } from '../types';
 
 export async function fetchFleet(): Promise<Fleet> {
   if (IS_MOCK) return mockApi.getFleet();
@@ -36,6 +36,20 @@ export interface TargetTopology {
   total_queue_managers: number;
   total_apps: number;
   total_channels: number;
+}
+
+export async function fetchQueueDetails(
+  qmName: string
+): Promise<Array<{ name: string; type: 'local' | 'remote' | 'xmit'; remoteQM?: string }>> {
+  if (IS_MOCK) return mockApi.getQueueDetails(qmName);
+  const { data } = await bclClient.get(`/api/fleet/${encodeURIComponent(qmName)}/queues`);
+  return data;
+}
+
+export async function fetchActiveChannels(): Promise<TopologyChannel[]> {
+  if (IS_MOCK) return mockApi.getActiveChannels();
+  const { data } = await bclClient.get('/api/topology/channels');
+  return data;
 }
 
 export async function fetchTargetTopology(): Promise<TargetTopology> {
