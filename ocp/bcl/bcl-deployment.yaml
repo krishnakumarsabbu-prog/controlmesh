@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bcl-gateway
+  namespace: mq-hackathon
+  labels:
+    app: bcl-gateway
+    version: "2.0.0"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bcl-gateway
+  template:
+    metadata:
+      labels:
+        app: bcl-gateway
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: bcl-gateway
+      containers:
+      - name: bcl
+        image: bcl-gateway:latest
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: MQ_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mq-admin-creds
+              key: password
+        - name: REDIS_URL
+          value: "redis://:$(REDIS_PASSWORD)@redis-svc:6379"
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-creds
+              key: password
+        - name: QM_SRC_A_URL
+          value: "https://qm-src-a-svc:9443"
+        - name: QM_SRC_B_URL
+          value: "https://qm-src-b-svc:9443"
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /healthz/live
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 15
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /healthz/ready
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          failureThreshold: 3
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1001
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bcl-gateway-svc
+  namespace: mq-hackathon
+  labels:
+    app: bcl-gateway
+spec:
+  selector:
+    app: bcl-gateway
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 8000
+  type: ClusterIP
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: bcl-gateway
+  namespace: mq-hackathon
+spec:
+  to:
+    kind: Service
+    name: bcl-gateway-svc
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
