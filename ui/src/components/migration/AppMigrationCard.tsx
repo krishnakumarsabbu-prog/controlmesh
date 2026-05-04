@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, RotateCcw, ChevronDown, ChevronUp, Clock, ListChecks, Loader as Loader2 } from 'lucide-react';
+import { Play, RotateCcw, ChevronDown, ChevronUp, Clock, ListChecks, Loader as Loader2, MessageSquare } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import type { MigrationRecord, MigrationPlanStep, RollbackStep, TopologySnapshot } from '../../types';
 import { planMigration } from '../../api/migration';
@@ -9,6 +9,7 @@ import StateBadge from './StateBadge';
 import MigrationStepper from './MigrationStepper';
 import PlanTimeline from './PlanTimeline';
 import RollbackTimeline from './RollbackTimeline';
+import ExplainPanel from './ExplainPanel';
 
 interface AppConfig { id: string; source: string; target: string; }
 
@@ -23,7 +24,7 @@ interface Props {
 const ACTIVE_STATES = ['SNAPSHOTTED', 'PROVISIONING_TARGET', 'REWIRING', 'VALIDATING', 'ROLLING_BACK'];
 const ROLLBACK_STATES = ['ROLLING_BACK', 'ROLLED_BACK'];
 
-type ExpandedView = 'stepper' | 'plan' | 'rollback' | null;
+type ExpandedView = 'stepper' | 'plan' | 'rollback' | 'explain' | null;
 
 export default function AppMigrationCard({ app, record, onMigrate, onRollback, isLoading }: Props) {
   const [expandedView, setExpandedView] = useState<ExpandedView>(null);
@@ -130,6 +131,10 @@ export default function AppMigrationCard({ app, record, onMigrate, onRollback, i
     setExpandedView((v) => v === 'rollback' ? null : 'rollback');
   };
 
+  const toggleExplain = () => {
+    setExpandedView((v) => v === 'explain' ? null : 'explain');
+  };
+
   const isRollbackComplete = state === 'ROLLED_BACK';
   const showRollbackButton = isRollingBack && expandedView !== 'rollback';
 
@@ -213,6 +218,14 @@ export default function AppMigrationCard({ app, record, onMigrate, onRollback, i
             </button>
           )}
           <button
+            onClick={toggleExplain}
+            title="Explain migration"
+            className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${expandedView === 'explain' ? 'bg-blue-50 text-blue-600 border border-blue-200' : 'hover:bg-slate-100 text-slate-500 border border-slate-200'}`}
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            Explain
+          </button>
+          <button
             onClick={toggleStepper}
             className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
           >
@@ -266,6 +279,9 @@ export default function AppMigrationCard({ app, record, onMigrate, onRollback, i
                 errorMessage={record?.error}
                 isComplete={isRollbackComplete}
               />
+            )}
+            {expandedView === 'explain' && (
+              <ExplainPanel app={app} record={record} />
             )}
           </motion.div>
         )}
