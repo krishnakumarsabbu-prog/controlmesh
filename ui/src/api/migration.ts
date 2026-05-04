@@ -32,6 +32,11 @@ export async function rollbackMigration(appId: string): Promise<void> {
   await bclClient.post(`/api/migration/${appId}/rollback`);
 }
 
+export async function simulateFailure(appId: string): Promise<void> {
+  if (IS_MOCK) return mockApi.simulateFailure(appId);
+  await bclClient.post(`/api/migration/${appId}/simulate-failure`);
+}
+
 export async function planMigration(
   appId: string,
   sourceQm: string,

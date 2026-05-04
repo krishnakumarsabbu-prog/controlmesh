@@ -537,6 +537,28 @@ export const mockApi = {
     };
   },
 
+  // Force-fail the current step of an in-progress migration and trigger rollback
+  async simulateFailure(appId: string) {
+    await delay(200);
+    const m = migrations[appId];
+    if (!m) return;
+    const activeStates = ['SNAPSHOTTED', 'PROVISIONING_TARGET', 'REWIRING', 'VALIDATING'];
+    if (!activeStates.includes(m.state)) return;
+
+    // Fail the currently running plan step
+    const steps = migrationPlanSteps[appId];
+    if (steps) {
+      const runningIdx = steps.findIndex((s) => s.status === 'running');
+      if (runningIdx >= 0) {
+        steps[runningIdx] = { ...steps[runningIdx], status: 'failed' };
+        notifyStepListeners(appId);
+      }
+    }
+
+    await new Promise((r) => setTimeout(r, 400));
+    triggerAutoRollback(appId, 'Simulated failure injected via UI — automated rollback initiated');
+  },
+
   getPlanSteps(appId: string): MigrationPlanStep[] | null {
     return migrationPlanSteps[appId] ?? null;
   },

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, RotateCcw, ChevronDown, ChevronUp, Clock, ListChecks, Loader as Loader2, MessageSquare } from 'lucide-react';
+import { Play, RotateCcw, ChevronDown, ChevronUp, Clock, ListChecks, Loader as Loader2, MessageSquare, Zap } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import type { MigrationRecord, MigrationPlanStep, RollbackStep, TopologySnapshot } from '../../types';
 import { planMigration } from '../../api/migration';
@@ -19,6 +19,7 @@ interface Props {
   onMigrate: () => void;
   onRollback: () => void;
   isLoading: boolean;
+  isAutonomousTarget?: boolean;
 }
 
 const ACTIVE_STATES = ['SNAPSHOTTED', 'PROVISIONING_TARGET', 'REWIRING', 'VALIDATING', 'ROLLING_BACK'];
@@ -26,7 +27,7 @@ const ROLLBACK_STATES = ['ROLLING_BACK', 'ROLLED_BACK'];
 
 type ExpandedView = 'stepper' | 'plan' | 'rollback' | 'explain' | null;
 
-export default function AppMigrationCard({ app, record, onMigrate, onRollback, isLoading }: Props) {
+export default function AppMigrationCard({ app, record, onMigrate, onRollback, isLoading, isAutonomousTarget }: Props) {
   const [expandedView, setExpandedView] = useState<ExpandedView>(null);
   const [planSteps, setPlanSteps] = useState<MigrationPlanStep[] | null>(null);
   const [planReasoning, setPlanReasoning] = useState<string | undefined>(undefined);
@@ -88,6 +89,7 @@ export default function AppMigrationCard({ app, record, onMigrate, onRollback, i
   const borderClass =
     state === 'ROLLING_BACK'  ? 'border-red-800 shadow-md shadow-red-900/20' :
     state === 'ROLLED_BACK'   ? 'border-orange-800' :
+    isAutonomousTarget        ? 'border-emerald-600 shadow-md shadow-emerald-900/30' :
     isActive                  ? 'border-amber-800 shadow-md shadow-amber-900/20' :
     state === 'MIGRATED'      ? 'border-emerald-800' :
     'border-surface-border';
@@ -161,6 +163,25 @@ export default function AppMigrationCard({ app, record, onMigrate, onRollback, i
                 <RotateCcw className="w-3 h-3" />
               </motion.div>
               Automatic rollback in progress — restoring topology from snapshot
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Autonomous target banner */}
+      <AnimatePresence>
+        {isAutonomousTarget && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="flex items-center gap-2 px-4 py-1.5 bg-emerald-900/50 border-b border-emerald-800 text-emerald-300 text-xs font-medium">
+              <motion.div animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 0.9, repeat: Infinity }}>
+                <Zap className="w-3 h-3" />
+              </motion.div>
+              Autonomous migration agent active
             </div>
           </motion.div>
         )}
