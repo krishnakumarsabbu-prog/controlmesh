@@ -1,16 +1,35 @@
 import { useState } from 'react';
-import { Network, ArrowRight } from 'lucide-react';
+import { Network, ArrowRight, DatabaseZap, CircleCheck as CheckCircle, CircleAlert as AlertCircle } from 'lucide-react';
 import TopologyCanvas from '../components/topology/TopologyCanvas';
 import { useFleet } from '../hooks/useFleet';
 import { useMigrations } from '../hooks/useMigrations';
 import LoadingSpinner from '../components/shared/LoadingSpinner';
+import { provisionTopology } from '../api/fleet';
 
 type ViewMode = 'split' | 'source' | 'target';
+type ProvisionState = 'idle' | 'loading' | 'success' | 'error';
 
 export default function TopologyPage() {
   const [view, setView] = useState<ViewMode>('split');
-  const { data: fleet, isLoading } = useFleet();
+  const [provisionState, setProvisionState] = useState<ProvisionState>('idle');
+  const [provisionMessage, setProvisionMessage] = useState<string>('');
+  const { data: fleet, isLoading, refetch: refetchFleet } = useFleet();
   const { migrations } = useMigrations();
+
+  async function handleProvision() {
+    setProvisionState('loading');
+    setProvisionMessage('');
+    try {
+      await provisionTopology();
+      setProvisionState('success');
+      setProvisionMessage('Source topology provisioned: 6 apps (AppA–F), 2 queue managers (QM1, QM2), 3 shared queues (Q1–Q3), 1 channel (QM1 → QM2).');
+      refetchFleet();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Provisioning failed.';
+      setProvisionState('error');
+      setProvisionMessage(msg);
+    }
+  }
 
   const sourceQMs = fleet?.queue_managers.filter((q) => q.role === 'source') ?? [];
   const targetQMs = fleet?.queue_managers.filter((q) => q.role === 'target') ?? [];
@@ -25,6 +44,14 @@ export default function TopologyPage() {
         </div>
         <div className="flex items-center gap-3">
           {isLoading && <LoadingSpinner size="sm" />}
+          <button
+            onClick={handleProvision}
+            disabled={provisionState === 'loading'}
+            className="flex items-center gap-2 px-4 py-1.5 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+          >
+            <DatabaseZap className="w-4 h-4" />
+            {provisionState === 'loading' ? 'Provisioning...' : 'Provision Source Topology'}
+          </button>
           <div className="flex rounded-lg border border-slate-200 overflow-hidden">
             {(['split', 'source', 'target'] as ViewMode[]).map((v) => (
               <button
@@ -42,6 +69,24 @@ export default function TopologyPage() {
           </div>
         </div>
       </div>
+
+      {/* Provision feedback banner */}
+      {provisionMessage && (
+        <div
+          className={`flex items-start gap-3 px-4 py-3 rounded-lg text-sm shrink-0 ${
+            provisionState === 'success'
+              ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+              : 'bg-red-50 border border-red-200 text-red-800'
+          }`}
+        >
+          {provisionState === 'success' ? (
+            <CheckCircle className="w-4 h-4 mt-0.5 shrink-0 text-emerald-600" />
+          ) : (
+            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-red-600" />
+          )}
+          <span>{provisionMessage}</span>
+        </div>
+      )}
 
       {/* Canvas area */}
       {view === 'split' ? (

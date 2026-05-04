@@ -13,3 +13,11 @@ export async function fetchQMStatus(qmName: string): Promise<QueueManagerFleet> 
   const { data } = await bclClient.get(`/api/fleet/${qmName}/status`);
   return data;
 }
+
+export async function provisionTopology(): Promise<{ status: string; topology: unknown }> {
+  if (IS_MOCK) {
+    return { status: 'provisioned', topology: {} };
+  }
+  const { data } = await bclClient.post('/api/topology/provision');
+  return data;
+}
