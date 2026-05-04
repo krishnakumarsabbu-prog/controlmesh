@@ -3,6 +3,7 @@ import AppShell from './components/layout/AppShell';
 import DashboardPage from './pages/DashboardPage';
 import TopologyPage from './pages/TopologyPage';
 import MigrationPage from './pages/MigrationPage';
+import MigrationPlanningPage from './pages/MigrationPlanningPage';
 import ValidationPage from './pages/ValidationPage';
 import AuditPage from './pages/AuditPage';
 import DemoPage from './pages/DemoPage';
@@ -16,6 +17,7 @@ export default function App() {
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="topology" element={<TopologyPage />} />
         <Route path="migration" element={<MigrationPage />} />
+        <Route path="migration-plan" element={<MigrationPlanningPage />} />
         <Route path="validation" element={<ValidationPage />} />
         <Route path="logs" element={<LogsPage />} />
         <Route path="audit" element={<AuditPage />} />
