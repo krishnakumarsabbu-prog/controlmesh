@@ -1,0 +1,11 @@
+# Phase 1 — in-memory database dependencies
+# Python >= 3.11 required
+
+# Redis client (includes connection pooling and pub/sub)
+redis==5.0.8
+
+# SQLite ships with CPython's stdlib — no extra package needed.
+# The entries below are for the broader BCL gateway that consumes this layer.
+
+# Async support (optional — use redis[asyncio] for async contexts)
+# redis[asyncio]==5.0.8
