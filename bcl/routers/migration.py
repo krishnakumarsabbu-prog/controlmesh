@@ -142,6 +142,71 @@ async def get_migration_history(app_id: str):
     return {"app_id": app_id, "history": record.history}
 
 
+@router.post("/migration/{app_id}/rollback", status_code=202)
+async def trigger_rollback(app_id: str, request: Request):
+    """
+    Manually trigger rollback for an application migration.
+    Transitions to ROLLING_BACK then runs the rollback agent asynchronously.
+    """
+    trace_id = getattr(request.state, "trace_id", "unknown")
+    record = await _sm.get(app_id)
+
+    rollback_eligible = {
+        MigrationState.PROVISIONING_TARGET,
+        MigrationState.REWIRING,
+        MigrationState.VALIDATING,
+        MigrationState.ROLLING_BACK,
+    }
+    if record.state not in rollback_eligible:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot roll back {app_id} from state {record.state}",
+        )
+
+    if record.state != MigrationState.ROLLING_BACK:
+        await _sm.transition(
+            app_id, MigrationState.ROLLING_BACK, {"triggered_by": "manual_api"}
+        )
+        MIGRATION_PHASE_COUNT.labels(app_id, MigrationState.ROLLING_BACK.value).inc()
+
+    asyncio.create_task(_run_rollback_pipeline(app_id))
+
+    await _store.append_audit(
+        {
+            "trace_id": trace_id,
+            "operation": "rollback_trigger",
+            "qm_target": record.source_qm,
+            "app_id": app_id,
+            "state": MigrationState.ROLLING_BACK.value,
+            "outcome": "accepted",
+        }
+    )
+
+    log.info("rollback_triggered", app_id=app_id, trace_id=trace_id)
+    return {
+        "status": "rolling_back",
+        "app_id": app_id,
+        "state": MigrationState.ROLLING_BACK,
+        "trace_id": trace_id,
+    }
+
+
+async def _run_rollback_pipeline(app_id: str) -> None:
+    """Fire-and-forget rollback pipeline."""
+    from bcl.agents.rollback_agent import run_rollback
+
+    try:
+        result = await run_rollback(app_id)
+        status = result.get("status")
+        if status == "ROLLED_BACK":
+            MIGRATION_PHASE_COUNT.labels(app_id, MigrationState.ROLLED_BACK.value).inc()
+            log.info("rollback_pipeline_complete", app_id=app_id)
+        else:
+            log.error("rollback_pipeline_failed", app_id=app_id, result=result)
+    except Exception as exc:
+        log.error("rollback_pipeline_exception", app_id=app_id, error=str(exc))
+
+
 @router.get("/migration/stream")
 async def migration_stream():
     """SSE stream for real-time UI updates on migration state changes."""
