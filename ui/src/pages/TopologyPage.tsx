@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Network, ArrowRight, DatabaseZap, CircleCheck as CheckCircle, CircleAlert as AlertCircle } from 'lucide-react';
+import { Network, ArrowRight, DatabaseZap, CircleCheck as CheckCircle, CircleAlert as AlertCircle, BrainCircuit, X, ShieldAlert, MessageSquareWarning } from 'lucide-react';
 import TopologyCanvas from '../components/topology/TopologyCanvas';
 import { useFleet } from '../hooks/useFleet';
 import { useMigrations } from '../hooks/useMigrations';
@@ -12,10 +12,43 @@ import type { QueueEntry } from '../components/topology/QMNode';
 type ViewMode = 'split' | 'source' | 'target';
 type ProvisionState = 'idle' | 'loading' | 'success' | 'error';
 
+interface AnalysisResult {
+  riskLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+  reason: string;
+  agentMessage: string;
+  details: string[];
+}
+
+const MOCK_ANALYSIS: AnalysisResult = {
+  riskLevel: 'HIGH',
+  reason: 'Shared queue manager',
+  agentMessage: 'High dependency detected between applications',
+  details: [
+    'QM.SRC.A serves 4 applications concurrently — single point of failure',
+    'QM.SRC.B serves 2 applications with overlapping queue definitions',
+    'Cross-application queue name collisions detected on Q1, Q2, Q3',
+    'No isolation boundary between APP1–APP4 workloads',
+  ],
+};
+
 export default function TopologyPage() {
   const [view, setView] = useState<ViewMode>('split');
   const [provisionState, setProvisionState] = useState<ProvisionState>('idle');
   const [provisionMessage, setProvisionMessage] = useState<string>('');
+  const [analysisState, setAnalysisState] = useState<'idle' | 'loading' | 'done'>('idle');
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [agentMessage, setAgentMessage] = useState<string>('');
+
+  function handleAnalyze() {
+    setAnalysisState('loading');
+    setAgentMessage('');
+    setAnalysisResult(null);
+    setTimeout(() => {
+      setAnalysisResult(MOCK_ANALYSIS);
+      setAnalysisState('done');
+      setTimeout(() => setAgentMessage(MOCK_ANALYSIS.agentMessage), 600);
+    }, 1400);
+  }
   const { data: fleet, isLoading, refetch: refetchFleet } = useFleet();
   const { migrations } = useMigrations();
 
@@ -111,6 +144,23 @@ export default function TopologyPage() {
         <div className="flex items-center gap-3">
           {(isLoading || targetLoading) && <LoadingSpinner size="sm" />}
           <button
+            onClick={handleAnalyze}
+            disabled={analysisState === 'loading'}
+            className="flex items-center gap-2 px-4 py-1.5 text-sm font-medium rounded-lg bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+          >
+            {analysisState === 'loading' ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                Analyzing...
+              </>
+            ) : (
+              <>
+                <BrainCircuit className="w-4 h-4" />
+                Analyze Topology
+              </>
+            )}
+          </button>
+          <button
             onClick={handleProvision}
             disabled={provisionState === 'loading'}
             className="flex items-center gap-2 px-4 py-1.5 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
@@ -151,6 +201,49 @@ export default function TopologyPage() {
             <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-red-800" />
           )}
           <span>{provisionMessage}</span>
+        </div>
+      )}
+
+      {/* AI Analysis result panel */}
+      {analysisResult && (
+        <div className="shrink-0 rounded-xl border border-red-200 bg-red-50 overflow-hidden">
+          <div className="flex items-start justify-between px-4 py-3 border-b border-red-200 bg-red-100/60">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="w-4 h-4 text-red-600" />
+              <span className="text-sm font-semibold text-red-900">AI Topology Analysis</span>
+              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-600 text-white tracking-wide">
+                {analysisResult.riskLevel} RISK
+              </span>
+            </div>
+            <button
+              onClick={() => { setAnalysisResult(null); setAgentMessage(''); setAnalysisState('idle'); }}
+              className="text-red-400 hover:text-red-600 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="px-4 py-3 flex flex-col gap-2">
+            <p className="text-sm font-medium text-red-800">
+              Reason: <span className="font-semibold">{analysisResult.reason}</span>
+            </p>
+            <ul className="flex flex-col gap-1">
+              {analysisResult.details.map((d, i) => (
+                <li key={i} className="flex items-start gap-2 text-xs text-red-700">
+                  <span className="mt-0.5 w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                  {d}
+                </li>
+              ))}
+            </ul>
+          </div>
+          {/* Agent message */}
+          {agentMessage && (
+            <div className="flex items-center gap-2 px-4 py-2 border-t border-red-200 bg-red-900/5">
+              <MessageSquareWarning className="w-4 h-4 text-red-500 shrink-0" />
+              <span className="text-xs font-mono text-red-700">
+                <span className="font-semibold text-red-500">Agent:</span> {agentMessage}
+              </span>
+            </div>
+          )}
         </div>
       )}
 
