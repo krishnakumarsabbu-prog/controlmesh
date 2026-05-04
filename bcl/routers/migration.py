@@ -3,6 +3,8 @@ import asyncio
 import structlog
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+from typing import Optional
 
 from bcl.models.migration import (
     ExecuteMigrationRequest,
@@ -11,6 +13,12 @@ from bcl.models.migration import (
 )
 from bcl.state.redis_store import RedisStore
 from bcl.state.state_machine import MigrationStateMachine
+from bcl.state.control_state import (
+    get_state,
+    append_log,
+    set_execution_state,
+    ExecutionState,
+)
 from bcl.observability.metrics import MIGRATION_PHASE_COUNT
 
 log = structlog.get_logger()
@@ -18,6 +26,110 @@ router = APIRouter(tags=["migration"])
 
 _store = RedisStore()
 _sm = MigrationStateMachine(_store)
+
+
+class MigrationPlanRequest(BaseModel):
+    app_id: str
+    source_qm: str
+    target_qm: str
+
+
+@router.post("/migration/plan", status_code=200)
+async def plan_migration(req: MigrationPlanRequest):
+    """
+    Generate a migration plan for an application.
+    Stores the plan in the unified in-memory state and returns the step list.
+    """
+    state = get_state()
+
+    if state.execution_state not in (ExecutionState.IDLE, ExecutionState.ROLLED_BACK):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cannot plan while system is in state: {state.execution_state}",
+        )
+
+    set_execution_state(ExecutionState.PLANNING)
+    append_log(
+        f"Migration plan requested for {req.app_id}",
+        app_id=req.app_id,
+        source_qm=req.source_qm,
+        target_qm=req.target_qm,
+    )
+
+    safe_id = req.app_id.replace("-", "").upper()
+    plan = [
+        {
+            "step": 1,
+            "phase": "BASELINE_VALIDATION",
+            "description": f"Validate source flows are operational on {req.source_qm}",
+            "qm": req.source_qm,
+        },
+        {
+            "step": 2,
+            "phase": "SNAPSHOT",
+            "description": f"Capture pre-migration topology snapshot of {req.source_qm}",
+            "qm": req.source_qm,
+        },
+        {
+            "step": 3,
+            "phase": "PROVISION_TARGET",
+            "description": (
+                f"Create target QM {req.target_qm} with DLQ Q.{safe_id}.DLQ.LOCAL, "
+                f"application queues, channels, and listener"
+            ),
+            "qm": req.target_qm,
+        },
+        {
+            "step": 4,
+            "phase": "REWIRE",
+            "description": (
+                f"Install xmit queue and remote queue definitions on {req.source_qm} "
+                f"to transparently route traffic to {req.target_qm}"
+            ),
+            "qm": req.source_qm,
+        },
+        {
+            "step": 5,
+            "phase": "POST_REWIRE_VALIDATION",
+            "description": "Verify transparent routing: producers unchanged, messages reach target",
+            "qm": req.target_qm,
+        },
+        {
+            "step": 6,
+            "phase": "CUTOVER",
+            "description": f"Remove local queue from {req.source_qm} to complete cutover",
+            "qm": req.source_qm,
+        },
+        {
+            "step": 7,
+            "phase": "FINAL_VALIDATION",
+            "description": "Confirm final state and message delivery on target QM",
+            "qm": req.target_qm,
+        },
+    ]
+
+    state.migration_plan = plan
+    set_execution_state(ExecutionState.IDLE)
+    append_log(
+        f"Migration plan generated: {len(plan)} steps",
+        app_id=req.app_id,
+    )
+
+    log.info(
+        "migration_plan_generated",
+        app_id=req.app_id,
+        source_qm=req.source_qm,
+        target_qm=req.target_qm,
+        steps=len(plan),
+    )
+
+    return {
+        "app_id": req.app_id,
+        "source_qm": req.source_qm,
+        "target_qm": req.target_qm,
+        "plan": plan,
+        "total_steps": len(plan),
+    }
 
 
 @router.post("/migration/execute", status_code=202)
@@ -29,6 +141,7 @@ async def execute_migration(req: ExecuteMigrationRequest, request: Request):
     from bcl.policy.engine import enforce_pre_operation
 
     trace_id = getattr(request.state, "trace_id", "unknown")
+    ctrl = get_state()
 
     await enforce_pre_operation(
         {"type": "migrate", "app_id": req.app_id},
@@ -41,6 +154,15 @@ async def execute_migration(req: ExecuteMigrationRequest, request: Request):
             status_code=400,
             detail=f"App {req.app_id} already in migration: {record.state}",
         )
+
+    set_execution_state(ExecutionState.EXECUTING)
+    append_log(
+        f"Migration execute started for {req.app_id}",
+        app_id=req.app_id,
+        source_qm=req.source_qm,
+        target_qm=req.target_qm,
+        trace_id=trace_id,
+    )
 
     snapshot = await _capture_topology_snapshot(req.source_qm)
     snapshot_key = await _store.save_snapshot(req.app_id, "pre_migration", snapshot)
@@ -169,6 +291,13 @@ async def trigger_rollback(app_id: str, request: Request):
         )
         MIGRATION_PHASE_COUNT.labels(app_id, MigrationState.ROLLING_BACK.value).inc()
 
+    set_execution_state(ExecutionState.ROLLED_BACK)
+    append_log(
+        f"Rollback triggered for {app_id}",
+        app_id=app_id,
+        trace_id=trace_id,
+    )
+
     asyncio.create_task(_run_rollback_pipeline(app_id))
 
     await _store.append_audit(
@@ -254,12 +383,16 @@ async def _run_agent_pipeline(
         status = result.get("status", "FAILED")
         if status == "MIGRATED":
             MIGRATION_PHASE_COUNT.labels(app_id, MigrationState.MIGRATED.value).inc()
+            set_execution_state(ExecutionState.IDLE)
+            append_log(f"Migration completed for {app_id}", app_id=app_id)
             log.info("migration_completed", app_id=app_id)
         else:
             raise RuntimeError(result.get("error") or f"Agent returned status: {status}")
 
     except Exception as exc:
         log.error("migration_pipeline_error", app_id=app_id, error=str(exc))
+        set_execution_state(ExecutionState.FAILED)
+        append_log(f"Migration failed for {app_id}: {exc}", app_id=app_id, level="ERROR")
         try:
             await _sm.transition(app_id, MigrationState.ROLLING_BACK, {"error": str(exc)})
             MIGRATION_PHASE_COUNT.labels(app_id, MigrationState.ROLLING_BACK.value).inc()
