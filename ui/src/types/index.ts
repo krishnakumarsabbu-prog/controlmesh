@@ -104,16 +104,15 @@ export interface ValidationSimResult {
   sent: number;
   received: number;
   errors: number;
+  latency_ms: number;
   passed: boolean;
   timestamp: number;
 }
 
-export interface ValidationSimResult {
+export interface MessageFlowPoint {
+  t: number;
   sent: number;
   received: number;
-  errors: number;
-  passed: boolean;
-  timestamp: number;
 }
 
 // ── Fleet / connectivity ──────────────────────────────────────────────────────

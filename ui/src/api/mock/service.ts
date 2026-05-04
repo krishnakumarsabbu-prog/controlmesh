@@ -459,7 +459,10 @@ export const mockApi = {
     const hasErrors = Math.random() < 0.4;
     const errors = hasErrors ? Math.floor(Math.random() * 10) + 1 : 0;
     const received = sent - errors;
-    return { sent, received, errors, passed: errors === 0, timestamp: Date.now() };
+    const latency_ms = hasErrors
+      ? 200 + Math.floor(Math.random() * 600)
+      : 30 + Math.floor(Math.random() * 50);
+    return { sent, received, errors, latency_ms, passed: errors === 0, timestamp: Date.now() };
   },
 
   async runSystemValidation(

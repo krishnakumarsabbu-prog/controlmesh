@@ -45,7 +45,7 @@ export default function ValidationPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-5 h-5 text-text-secondary" />
-          <h1 className="text-xl font-semibold text-text-primary">Validation Matrix</h1>
+          <h1 className="text-xl font-semibold text-text-primary">Validation</h1>
         </div>
         <div className="flex items-center gap-2">
           {isLoading && <LoadingSpinner size="sm" />}
@@ -55,69 +55,73 @@ export default function ValidationPage() {
           </span>
         </div>
       </div>
+
+      {/* Message flow simulation — primary feature */}
+      <ValidationSimulator />
+
       {/* System policy validation */}
       <SystemValidationPanel />
 
-      {/* Message flow simulation */}
-      <ValidationSimulator />
-
-      {/* Matrix table */}
-      <div className="card overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="bg-surface-raised border-b border-surface-border">
-              <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wider w-36">
-                Application
-              </th>
-              {PHASES.map((phase) => (
-                <th key={phase} className="px-4 py-3 text-center text-xs font-semibold text-text-muted uppercase tracking-wider">
-                  <div>{phase.replace('_', ' ')}</div>
-                  <div className="text-[10px] font-normal text-text-muted normal-case tracking-normal mt-0.5">
-                    {PHASE_LABELS[phase]}
-                  </div>
+      {/* Validation matrix */}
+      <div>
+        <div className="section-title mb-3">Validation Matrix</div>
+        <div className="card overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-surface-raised border-b border-surface-border">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wider w-36">
+                  Application
                 </th>
-              ))}
-              <th className="px-4 py-3 text-center text-xs font-semibold text-text-muted uppercase tracking-wider w-32">
-                Latency trend
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {APPS.map((app, i) => {
-              const appResults = allValidation?.[app] ?? [];
-              const latencies = PHASES.map((phase) =>
-                appResults.find((r) => r.phase === phase)?.latency_ms
-              ).filter((v): v is number => v !== undefined);
-
-              return (
-                <tr
-                  key={app}
-                  className={`hover:bg-surface-overlay transition-colors ${
-                    i < APPS.length - 1 ? 'border-b border-surface-border' : ''
-                  }`}
-                >
-                  <td className="px-4 py-3">
-                    <div className="font-semibold text-text-primary text-sm">{app}</div>
-                    <div className="text-[11px] text-text-muted font-mono">
-                      {app.replace('APP', 'QM.APP')}
+                {PHASES.map((phase) => (
+                  <th key={phase} className="px-4 py-3 text-center text-xs font-semibold text-text-muted uppercase tracking-wider">
+                    <div>{phase.replace('_', ' ')}</div>
+                    <div className="text-[10px] font-normal text-text-muted normal-case tracking-normal mt-0.5">
+                      {PHASE_LABELS[phase]}
                     </div>
-                  </td>
-                  {PHASES.map((phase) => {
-                    const result = appResults.find((r) => r.phase === phase);
-                    return (
-                      <td key={phase} className="px-4 py-3 text-center">
-                        <ValidationBadge result={result} />
-                      </td>
-                    );
-                  })}
-                  <td className="px-4 py-3">
-                    <LatencySparkline latencies={latencies} />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                  </th>
+                ))}
+                <th className="px-4 py-3 text-center text-xs font-semibold text-text-muted uppercase tracking-wider w-32">
+                  Latency trend
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {APPS.map((app, i) => {
+                const appResults = allValidation?.[app] ?? [];
+                const latencies = PHASES.map((phase) =>
+                  appResults.find((r) => r.phase === phase)?.latency_ms
+                ).filter((v): v is number => v !== undefined);
+
+                return (
+                  <tr
+                    key={app}
+                    className={`hover:bg-surface-overlay transition-colors ${
+                      i < APPS.length - 1 ? 'border-b border-surface-border' : ''
+                    }`}
+                  >
+                    <td className="px-4 py-3">
+                      <div className="font-semibold text-text-primary text-sm">{app}</div>
+                      <div className="text-[11px] text-text-muted font-mono">
+                        {app.replace('APP', 'QM.APP')}
+                      </div>
+                    </td>
+                    {PHASES.map((phase) => {
+                      const result = appResults.find((r) => r.phase === phase);
+                      return (
+                        <td key={phase} className="px-4 py-3 text-center">
+                          <ValidationBadge result={result} />
+                        </td>
+                      );
+                    })}
+                    <td className="px-4 py-3">
+                      <LatencySparkline latencies={latencies} />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Phase stats */}
