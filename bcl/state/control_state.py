@@ -49,6 +49,40 @@ def set_execution_state(new_state: str) -> None:
     _state.execution_state = new_state
 
 
+def generate_target_topology() -> dict:
+    """
+    Generate the target topology where each application gets its own
+    dedicated queue manager with app-specific queues.
+
+    AppA → QM_APP_A, AppB → QM_APP_B, ... AppF → QM_APP_F
+    """
+    apps = ["AppA", "AppB", "AppC", "AppD", "AppE", "AppF"]
+    queue_managers = []
+
+    for app in apps:
+        app_upper = app.upper()
+        qm_name = f"QM_{app_upper}"
+        queue_managers.append({
+            "name": qm_name,
+            "role": "target",
+            "apps": [app],
+            "queues": [
+                {"name": f"{app_upper}.REQUEST", "type": "LOCAL", "shared": False},
+                {"name": f"{app_upper}.REPLY", "type": "LOCAL", "shared": False},
+                {"name": f"{app_upper}.DLQ", "type": "LOCAL", "shared": False},
+            ],
+        })
+
+    return {
+        "queue_managers": queue_managers,
+        "channels": [],
+        "applications": apps,
+        "total_queue_managers": len(queue_managers),
+        "total_apps": len(apps),
+        "total_channels": 0,
+    }
+
+
 SOURCE_TOPOLOGY: dict = {
     "queue_managers": [
         {

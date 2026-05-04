@@ -20,20 +20,26 @@ const nodeTypes = { qmNode: QMNode };
 const edgeTypes = { channelEdge: ChannelEdge };
 
 const APP_QUEUES: Record<string, string[]> = {
+  // Source QMs (legacy dot-notation)
   'QM.SRC.A': ['APP1.REQUEST', 'APP2.REQUEST', 'APP3.REQUEST', 'APP1.REPLY', 'APP2.REPLY'],
   'QM.SRC.B': ['APP4.REQUEST', 'APP5.REQUEST', 'APP6.REQUEST', 'APP4.REPLY', 'APP5.REPLY'],
-  'QM.APP1': ['APP1.REQUEST', 'APP1.REPLY', 'APP1.DLQ'],
-  'QM.APP2': ['APP2.REQUEST', 'APP2.REPLY', 'APP2.DLQ'],
-  'QM.APP3': ['APP3.REQUEST', 'APP3.REPLY', 'APP3.DLQ'],
-  'QM.APP4': ['APP4.REQUEST', 'APP4.REPLY', 'APP4.DLQ'],
-  'QM.APP5': ['APP5.REQUEST', 'APP5.REPLY', 'APP5.DLQ'],
-  'QM.APP6': ['APP6.REQUEST', 'APP6.REPLY', 'APP6.DLQ'],
+  // Source QMs (provisioned fleet names)
+  'QM1': ['APPA.REQUEST', 'APPB.REQUEST', 'APPC.REQUEST', 'APPA.REPLY', 'APPB.REPLY'],
+  'QM2': ['APPD.REQUEST', 'APPE.REQUEST', 'APPF.REQUEST', 'APPD.REPLY', 'APPE.REPLY'],
+  // Target QMs — generated topology
+  'QM_APP_A': ['APPA.REQUEST', 'APPA.REPLY', 'APPA.DLQ'],
+  'QM_APP_B': ['APPB.REQUEST', 'APPB.REPLY', 'APPB.DLQ'],
+  'QM_APP_C': ['APPC.REQUEST', 'APPC.REPLY', 'APPC.DLQ'],
+  'QM_APP_D': ['APPD.REQUEST', 'APPD.REPLY', 'APPD.DLQ'],
+  'QM_APP_E': ['APPE.REQUEST', 'APPE.REPLY', 'APPE.DLQ'],
+  'QM_APP_F': ['APPF.REQUEST', 'APPF.REPLY', 'APPF.DLQ'],
 };
 
 const APP_COUNTS: Record<string, number> = {
   'QM.SRC.A': 3, 'QM.SRC.B': 3,
-  'QM.APP1': 1, 'QM.APP2': 1, 'QM.APP3': 1,
-  'QM.APP4': 1, 'QM.APP5': 1, 'QM.APP6': 1,
+  'QM1': 3, 'QM2': 3,
+  'QM_APP_A': 1, 'QM_APP_B': 1, 'QM_APP_C': 1,
+  'QM_APP_D': 1, 'QM_APP_E': 1, 'QM_APP_F': 1,
 };
 
 interface Props {
@@ -78,7 +84,8 @@ function buildLayout(qms: QueueManagerFleet[], migrations: Record<string, Migrat
     targetQMs.forEach((qm, i) => {
       const col = i % 2;
       const row = Math.floor(i / 2);
-      const appId = qm.name.replace('QM.', '');
+      // Support both QM_APP_A and QM.APP1 naming conventions
+      const appId = qm.name.replace(/^QM[._](?:APP[._])?/, '');
       const migration = Object.values(migrations).find((m) => m.target_qm === qm.name || m.app_id === appId);
 
       nodes.push({
@@ -130,7 +137,7 @@ export default function TopologyCanvas({ queueManagers, migrations, mode }: Prop
             ?? 'IDLE';
         }
       } else {
-        const appId = qm.name.replace('QM.', '');
+        const appId = qm.name.replace(/^QM[._](?:APP[._])?/, '');
         const migration = Object.values(migrations).find((m) => m.target_qm === qm.name || m.app_id === appId);
         migrationState = migration?.state ?? 'IDLE';
       }

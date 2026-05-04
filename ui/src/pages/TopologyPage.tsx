@@ -1,10 +1,12 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Network, ArrowRight, DatabaseZap, CircleCheck as CheckCircle, CircleAlert as AlertCircle } from 'lucide-react';
 import TopologyCanvas from '../components/topology/TopologyCanvas';
 import { useFleet } from '../hooks/useFleet';
 import { useMigrations } from '../hooks/useMigrations';
 import LoadingSpinner from '../components/shared/LoadingSpinner';
-import { provisionTopology } from '../api/fleet';
+import { provisionTopology, fetchTargetTopology } from '../api/fleet';
+import type { QueueManagerFleet } from '../types';
 
 type ViewMode = 'split' | 'source' | 'target';
 type ProvisionState = 'idle' | 'loading' | 'success' | 'error';
@@ -15,6 +17,12 @@ export default function TopologyPage() {
   const [provisionMessage, setProvisionMessage] = useState<string>('');
   const { data: fleet, isLoading, refetch: refetchFleet } = useFleet();
   const { migrations } = useMigrations();
+
+  const { data: targetTopology, isLoading: targetLoading } = useQuery({
+    queryKey: ['topology-target'],
+    queryFn: fetchTargetTopology,
+    staleTime: 60_000,
+  });
 
   async function handleProvision() {
     setProvisionState('loading');
@@ -32,7 +40,15 @@ export default function TopologyPage() {
   }
 
   const sourceQMs = fleet?.queue_managers.filter((q) => q.role === 'source') ?? [];
-  const targetQMs = fleet?.queue_managers.filter((q) => q.role === 'target') ?? [];
+
+  // Convert target topology QMs into the QueueManagerFleet shape for the canvas
+  const targetQMs: QueueManagerFleet[] = (targetTopology?.queue_managers ?? []).map((qm) => ({
+    name: qm.name,
+    internal_name: qm.name.toLowerCase(),
+    svc_url: '',
+    role: 'target' as const,
+    status: 'unknown' as const,
+  }));
 
   return (
     <div className="flex flex-col gap-4 h-[calc(100vh-7rem)]">
@@ -43,7 +59,7 @@ export default function TopologyPage() {
           <h1 className="text-xl font-semibold text-slate-900">Topology View</h1>
         </div>
         <div className="flex items-center gap-3">
-          {isLoading && <LoadingSpinner size="sm" />}
+          {(isLoading || targetLoading) && <LoadingSpinner size="sm" />}
           <button
             onClick={handleProvision}
             disabled={provisionState === 'loading'}

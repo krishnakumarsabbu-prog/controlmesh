@@ -7,6 +7,7 @@ from bcl.state.control_state import (
     set_execution_state,
     ExecutionState,
     SOURCE_TOPOLOGY,
+    generate_target_topology,
 )
 
 log = structlog.get_logger()
@@ -56,3 +57,15 @@ async def provision_topology():
         "status": "provisioned",
         "topology": state.topology,
     }
+
+
+@router.get("/topology/target")
+async def get_target_topology():
+    """
+    Return the generated target topology — 6 dedicated queue managers,
+    one per application. Does NOT modify the current (source) topology.
+    """
+    append_log("GET /topology/target requested")
+    target = generate_target_topology()
+    log.info("target_topology_generated", qm_count=target["total_queue_managers"])
+    return {"topology": target}
