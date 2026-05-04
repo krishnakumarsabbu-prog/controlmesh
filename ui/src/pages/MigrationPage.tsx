@@ -1,9 +1,11 @@
-import { Layers } from 'lucide-react';
+import { useState } from 'react';
+import { Layers, Play } from 'lucide-react';
 import AppMigrationCard from '../components/migration/AppMigrationCard';
 import MigrationTimeline from '../components/migration/MigrationTimeline';
 import LiveIndicator from '../components/shared/LiveIndicator';
 import { useMigrations } from '../hooks/useMigrations';
 import { useMigrationStream } from '../hooks/useMigrationStream';
+import { executeMigration } from '../api/migration';
 
 const APPS = [
   { id: 'APP1', source: 'QM.SRC.A', target: 'QM.APP1' },
@@ -16,10 +18,28 @@ const APPS = [
 
 export default function MigrationPage() {
   const { migrations, triggerMigration, rollbackApp, isLoading } = useMigrations();
+  const [bulkRunning, setBulkRunning] = useState(false);
   useMigrationStream();
 
   const migratedCount = Object.values(migrations).filter((m) => m.state === 'MIGRATED').length;
   const progress = (migratedCount / APPS.length) * 100;
+  const allMigrated = migratedCount === APPS.length;
+
+  const migrateAll = async () => {
+    setBulkRunning(true);
+    for (const app of APPS) {
+      const state = migrations[app.id]?.state ?? 'IDLE';
+      if (state === 'IDLE' || state === 'ROLLED_BACK') {
+        try {
+          await executeMigration(app.id, app.source, app.target);
+        } catch {
+          // continue with others
+        }
+        await new Promise((res) => setTimeout(res, 1500));
+      }
+    }
+    setBulkRunning(false);
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -35,6 +55,16 @@ export default function MigrationPage() {
             <span className="font-semibold text-slate-900">{migratedCount}</span>
             <span className="text-slate-400"> / {APPS.length} apps migrated</span>
           </div>
+          {!allMigrated && (
+            <button
+              onClick={migrateAll}
+              disabled={bulkRunning || isLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-700 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+            >
+              <Play className="w-3 h-3" />
+              {bulkRunning ? 'Migrating all…' : 'Migrate all'}
+            </button>
+          )}
         </div>
       </div>
 

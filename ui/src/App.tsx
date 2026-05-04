@@ -4,6 +4,7 @@ import TopologyPage from './pages/TopologyPage';
 import MigrationPage from './pages/MigrationPage';
 import ValidationPage from './pages/ValidationPage';
 import AuditPage from './pages/AuditPage';
+import DemoPage from './pages/DemoPage';
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
         <Route path="migration" element={<MigrationPage />} />
         <Route path="validation" element={<ValidationPage />} />
         <Route path="audit" element={<AuditPage />} />
+        <Route path="demo" element={<DemoPage />} />
       </Route>
     </Routes>
   );
