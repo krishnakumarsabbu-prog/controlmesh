@@ -11,13 +11,15 @@ log = structlog.get_logger()
 
 
 async def create_queue_manager(qm_logical_name: str, zone: str, app_id: str) -> dict:
-    """Create a new queue manager pod on OCP and register it in the BCL fleet."""
+    """Deploy a new MQ QM pod on OCP and register it in the BCL fleet."""
     from bcl.mq.registry import QueueManagerEntry
     from bcl.mq.client import MQRestClient
+    from bcl.ocp.deployer import deploy_qm_pod
     import os
 
-    svc_url = f"https://{qm_logical_name.lower().replace('.', '-')}-svc:9443"
+    await deploy_qm_pod(qm_logical_name, zone, app_id)
 
+    svc_url = f"https://{qm_logical_name.lower().replace('.', '-')}-svc:9443"
     registry = get_registry()
     registry.register(QueueManagerEntry(
         name=qm_logical_name,
@@ -96,6 +98,27 @@ async def create_xmit_queue(source_qm: str, xmit_queue_name: str, target_qm: str
             "triggerType": "FIRST",
         },
     )
+
+
+async def create_listener(qm_name: str, listener_name: str, port: int) -> dict:
+    """Create a listener on the specified QM via MQ REST API."""
+    from bcl.policy.naming import validate_naming
+
+    errors = validate_naming({"object_type": "listener", "name": listener_name})
+    if errors:
+        return {"status": "error", "violations": errors}
+
+    registry = get_registry()
+    qm = registry.get(qm_name)
+    r = await qm.client._get_client().post(
+        f"{qm.svc_url}/ibmmq/rest/v2/admin/qmgr/{qm.internal_name}/listener",
+        json={"name": listener_name, "port": port, "transport": "TCP"},
+        auth=qm.client.auth,
+        headers={"ibm-mq-rest-csrf-token": "blank"},
+    )
+    r.raise_for_status()
+    log.info("tool_create_listener", qm=qm_name, listener=listener_name, port=port)
+    return {"status": "created", "listener": listener_name, "port": port, "qm": qm_name}
 
 
 async def create_remote_def(
