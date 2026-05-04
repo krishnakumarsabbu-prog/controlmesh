@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useEffect } from 'react';
+import React, { useMemo, useCallback, useEffect, useState } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -12,16 +12,20 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 
 import { QMNode, type QMNodeData, type QueueEntry } from './QMNode';
+import { AppNode, type AppNodeData } from './AppNode';
+import { QueueNode, type QueueNodeData } from './QueueNode';
 import { ChannelEdge } from './ChannelEdge';
+import NodeDetailsPanel from './NodeDetailsPanel';
 import TopologyLegend from './TopologyLegend';
 import type { QueueManagerFleet, MigrationRecord, TopologyChannel } from '../../types';
 
-const nodeTypes = { qmNode: QMNode };
+const nodeTypes = { qmNode: QMNode, appNode: AppNode, queueNode: QueueNode };
 const edgeTypes = { channelEdge: ChannelEdge };
 
-const APP_COUNTS: Record<string, number> = {
-  'QM.SRC.A': 3, 'QM.SRC.B': 3,
-  'QM1': 3, 'QM2': 3,
+// Apps per source QM for demo purposes
+const SOURCE_QM_APPS: Record<string, string[]> = {
+  'QM.SRC.A': ['APP1', 'APP2'],
+  'QM.SRC.B': ['APP3', 'APP4', 'APP5', 'APP6'],
 };
 
 interface QMQueueMap {
@@ -64,30 +68,96 @@ function buildLayout(
   queueDetails: QMQueueMap,
   channels: TopologyChannel[]
 ) {
-  const nodes: Node<QMNodeData>[] = [];
+  const nodes: Node[] = [];
   const edges: Edge[] = [];
 
+  // ── QM nodes ─────────────────────────────────────────────────────────────
   if (mode === 'source') {
     const sourceQMs = qms.filter((q) => q.role === 'source');
-    sourceQMs.forEach((qm, i) => {
+
+    sourceQMs.forEach((qm, qmIdx) => {
       const migrationState = getMigrationStateForQM(qm.name, 'source', migrations);
       const queues = queueDetails[qm.name] ?? [];
+      const apps = SOURCE_QM_APPS[qm.name] ?? Object.values(migrations)
+        .filter((m) => m.source_qm === qm.name)
+        .map((m) => m.app_id);
 
+      const qmX = 260;
+      const qmY = qmIdx * 440 + 60;
+
+      // QM node
       nodes.push({
         id: qm.name,
         type: 'qmNode',
-        position: { x: 100, y: i * 280 + 60 },
+        position: { x: qmX, y: qmY },
         data: {
           label: qm.name,
           role: 'source',
           migrationState,
-          appCount: APP_COUNTS[qm.name] ?? Object.values(migrations).filter((m) => m.source_qm === qm.name).length,
+          appCount: apps.length,
           queues,
           isReachable: qm.status !== 'unreachable',
-        },
+        } satisfies QMNodeData,
+      });
+
+      // App nodes (left of QM)
+      apps.forEach((appId, i) => {
+        const migration = Object.values(migrations).find((m) => m.app_id === appId);
+        const nodeId = `app-${appId}`;
+        nodes.push({
+          id: nodeId,
+          type: 'appNode',
+          position: { x: 20, y: qmY + i * 80 + 20 },
+          data: {
+            label: appId,
+            sourceQM: qm.name,
+            targetQM: migration?.target_qm,
+            migrationState: migration?.state,
+          } satisfies AppNodeData,
+        });
+        edges.push({
+          id: `e-${nodeId}-${qm.name}`,
+          source: nodeId,
+          target: qm.name,
+          type: 'default',
+          style: { stroke: '#93c5fd', strokeWidth: 1.5 },
+          markerEnd: { type: 'arrowclosed' as const, color: '#93c5fd' },
+        });
+      });
+
+      // Queue nodes (right of QM)
+      const visibleQueues = queues.slice(0, 6);
+      visibleQueues.forEach((q, i) => {
+        const nodeId = `queue-${qm.name}-${q.name}`;
+        nodes.push({
+          id: nodeId,
+          type: 'queueNode',
+          position: { x: 520, y: qmY + i * 68 + 10 },
+          data: {
+            label: q.name,
+            queueType: q.type,
+            ownerQM: qm.name,
+            remoteQM: q.remoteQM,
+          } satisfies QueueNodeData,
+        });
+        edges.push({
+          id: `e-${qm.name}-${nodeId}`,
+          source: qm.name,
+          target: nodeId,
+          type: 'default',
+          style: {
+            stroke: q.type === 'remote' ? '#fbbf24' : q.type === 'xmit' ? '#7dd3fc' : '#cbd5e1',
+            strokeWidth: 1.5,
+          },
+          markerEnd: {
+            type: 'arrowclosed' as const,
+            color: q.type === 'remote' ? '#fbbf24' : q.type === 'xmit' ? '#7dd3fc' : '#cbd5e1',
+          },
+        });
       });
     });
   } else {
+    // Target mode: QM nodes in 2-column grid with their queues to the right
     const targetQMs = qms.filter((q) => q.role === 'target');
     targetQMs.forEach((qm, i) => {
       const col = i % 2;
@@ -95,23 +165,51 @@ function buildLayout(
       const migrationState = getMigrationStateForQM(qm.name, 'target', migrations);
       const queues = queueDetails[qm.name] ?? [];
 
+      const qmX = col * 400 + 20;
+      const qmY = row * 240 + 40;
+
       nodes.push({
         id: qm.name,
         type: 'qmNode',
-        position: { x: col * 260 + 40, y: row * 250 + 40 },
+        position: { x: qmX, y: qmY },
         data: {
           label: qm.name,
           role: 'target',
           migrationState,
-          appCount: APP_COUNTS[qm.name] ?? 1,
+          appCount: 1,
           queues,
           isReachable: qm.status !== 'unreachable',
-        },
+        } satisfies QMNodeData,
+      });
+
+      // Queue nodes to the right
+      const visibleQueues = queues.slice(0, 4);
+      visibleQueues.forEach((q, qi) => {
+        const nodeId = `queue-${qm.name}-${q.name}`;
+        nodes.push({
+          id: nodeId,
+          type: 'queueNode',
+          position: { x: qmX + 240, y: qmY + qi * 56 },
+          data: {
+            label: q.name,
+            queueType: q.type,
+            ownerQM: qm.name,
+            remoteQM: q.remoteQM,
+          } satisfies QueueNodeData,
+        });
+        edges.push({
+          id: `e-${qm.name}-${nodeId}`,
+          source: qm.name,
+          target: nodeId,
+          type: 'default',
+          style: { stroke: '#cbd5e1', strokeWidth: 1.5 },
+          markerEnd: { type: 'arrowclosed' as const, color: '#cbd5e1' },
+        });
       });
     });
   }
 
-  // Add channel edges for rewiring visualization
+  // Channel edges between QM nodes
   channels.forEach((ch) => {
     const sourceExists = nodes.some((n) => n.id === ch.sourceQM);
     const targetExists = nodes.some((n) => n.id === ch.targetQM);
@@ -129,7 +227,11 @@ function buildLayout(
   return { nodes, edges };
 }
 
+type AnyNodeData = QMNodeData | AppNodeData | QueueNodeData;
+
 export default function TopologyCanvas({ queueManagers, migrations, mode, queueDetails = {}, channels = [] }: Props) {
+  const [selectedNode, setSelectedNode] = useState<Node<AnyNodeData> | null>(null);
+
   const { nodes: initialNodes, edges: initialEdges } = useMemo(
     () => buildLayout(queueManagers, migrations, mode, queueDetails, channels),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -139,16 +241,23 @@ export default function TopologyCanvas({ queueManagers, migrations, mode, queueD
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  // Sync nodes when data changes
   useEffect(() => {
     const { nodes: newNodes, edges: newEdges } = buildLayout(queueManagers, migrations, mode, queueDetails, channels);
     setNodes(newNodes);
     setEdges(newEdges);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(queueManagers), JSON.stringify(migrations), mode, JSON.stringify(queueDetails), JSON.stringify(channels)]);
 
   const onInit = useCallback((instance: { fitView: () => void }) => {
     setTimeout(() => instance.fitView(), 100);
+  }, []);
+
+  const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+    setSelectedNode((prev) => (prev?.id === node.id ? null : node as Node<AnyNodeData>));
+  }, []);
+
+  const onPaneClick = useCallback(() => {
+    setSelectedNode(null);
   }, []);
 
   return (
@@ -161,9 +270,11 @@ export default function TopologyCanvas({ queueManagers, migrations, mode, queueD
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         onInit={onInit}
+        onNodeClick={onNodeClick}
+        onPaneClick={onPaneClick}
         fitView
-        fitViewOptions={{ padding: 0.3 }}
-        minZoom={0.3}
+        fitViewOptions={{ padding: 0.2 }}
+        minZoom={0.2}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}
       >
@@ -171,6 +282,11 @@ export default function TopologyCanvas({ queueManagers, migrations, mode, queueD
         <Controls showInteractive={false} className="!bg-white !border-slate-200 !shadow-sm" />
         <MiniMap
           nodeColor={(n) => {
+            if (n.type === 'appNode') return '#3b82f6';
+            if (n.type === 'queueNode') {
+              const t = (n.data as QueueNodeData)?.queueType;
+              return t === 'remote' ? '#fbbf24' : t === 'xmit' ? '#7dd3fc' : '#94a3b8';
+            }
             const state = (n.data as QMNodeData)?.migrationState ?? 'IDLE';
             const colors: Record<string, string> = {
               IDLE: '#94a3b8', SNAPSHOTTED: '#3b82f6',
@@ -183,7 +299,10 @@ export default function TopologyCanvas({ queueManagers, migrations, mode, queueD
           className="!bg-white/80 !border-slate-200 !rounded-lg"
         />
       </ReactFlow>
+
       <TopologyLegend />
+
+      <NodeDetailsPanel node={selectedNode} onClose={() => setSelectedNode(null)} />
     </div>
   );
 }
