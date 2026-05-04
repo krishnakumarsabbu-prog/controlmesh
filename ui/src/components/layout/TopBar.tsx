@@ -30,12 +30,9 @@ export default function TopBar({ pageTitle }: TopBarProps) {
 
   return (
     <header
-      className="h-13 flex items-center justify-between px-6 py-3 shrink-0 border-b border-surface-border"
+      className="h-13 flex items-center justify-between px-6 py-3 shrink-0 border-b border-surface-border bg-surface-base/95 backdrop-blur-md"
       style={{
-        background: 'rgba(15, 21, 35, 0.95)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-        boxShadow: '0 1px 0 rgba(255,255,255,0.04)',
+        boxShadow: theme === 'editorial' ? 'none' : '0 1px 0 rgba(255,255,255,0.04)',
       }}
     >
       {/* Left: page title + breadcrumb */}

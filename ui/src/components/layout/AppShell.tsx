@@ -78,7 +78,7 @@ export default function AppShell() {
                 className={() =>
                   `group relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ease-out animate-slide-in-left ${
                     isActive
-                      ? 'text-white'
+                      ? (theme === 'editorial' ? 'text-accent-primary' : 'text-text-primary')
                       : 'text-text-secondary hover:text-text-primary hover:bg-surface-overlay/60'
                   }`
                 }
@@ -87,9 +87,9 @@ export default function AppShell() {
                   <span
                     className="absolute inset-0 rounded-xl"
                     style={{
-                      background: 'linear-gradient(135deg, rgba(99,102,241,0.18) 0%, rgba(79,70,229,0.08) 100%)',
-                      border: '1px solid rgba(99,102,241,0.28)',
-                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+                      background: theme === 'editorial' ? 'var(--surface-overlay)' : 'linear-gradient(135deg, rgba(99,102,241,0.18) 0%, rgba(79,70,229,0.08) 100%)',
+                      border: theme === 'editorial' ? '1px solid var(--surface-border)' : '1px solid rgba(99,102,241,0.28)',
+                      boxShadow: theme === 'editorial' ? 'none' : 'inset 0 1px 0 rgba(255,255,255,0.05)',
                     }}
                   />
                 )}
@@ -97,13 +97,13 @@ export default function AppShell() {
                 {isActive && (
                   <span
                     className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full"
-                    style={{ background: 'linear-gradient(180deg, #818CF8 0%, #6366F1 100%)' }}
+                    style={{ background: 'var(--accent-primary)' }}
                   />
                 )}
 
                 <Icon
                   className={`w-4 h-4 shrink-0 relative z-10 transition-colors duration-200 ${
-                    isActive ? 'text-indigo-400' : 'text-text-muted group-hover:text-text-secondary'
+                    isActive ? 'text-accent-primary' : 'text-text-muted group-hover:text-text-secondary'
                   }`}
                 />
                 <span className="flex-1 relative z-10">{label}</span>
@@ -111,7 +111,7 @@ export default function AppShell() {
                 {isActive && (
                   <span
                     className="w-1.5 h-1.5 rounded-full relative z-10 shrink-0"
-                    style={{ background: '#6366F1', boxShadow: '0 0 6px rgba(99,102,241,0.9)' }}
+                    style={{ background: 'var(--accent-primary)', boxShadow: '0 0 6px var(--accent-glow)' }}
                   />
                 )}
               </NavLink>

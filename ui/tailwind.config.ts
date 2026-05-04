@@ -7,18 +7,18 @@ export default {
       colors: {
         // ControlMesh surface ramp — deep navy hierarchy
         surface: {
-          base:    '#0B0F1A',
-          raised:  '#0F1523',
-          card:    '#141B2D',
-          overlay: '#1A2236',
-          border:  '#1E2A3D',
-          muted:   '#2A3550',
+          base:    'var(--surface-base)',
+          raised:  'var(--surface-raised)',
+          card:    'var(--surface-card)',
+          overlay: 'var(--surface-overlay)',
+          border:  'var(--surface-border)',
+          muted:   'var(--surface-muted)',
         },
         text: {
-          primary:   '#E5E7EB',
-          secondary: '#9CA3AF',
-          muted:     '#6B7280',
-          accent:    '#818CF8',
+          primary:   'var(--text-primary)',
+          secondary: 'var(--text-secondary)',
+          muted:     'var(--text-muted)',
+          accent:    'var(--accent-primary)',
         },
         // Primary indigo — ControlMesh brand
         primary: {

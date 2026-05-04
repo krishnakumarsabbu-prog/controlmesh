@@ -19,14 +19,31 @@
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    
+    /* Default (Standard) Theme Variables */
+    --surface-base: #0B0F1A;
+    --surface-raised: #0F1523;
+    --surface-card: #141B2D;
+    --surface-overlay: #1A2236;
+    --surface-border: #1E2A3D;
+    --surface-muted: #2A3550;
+    --text-primary: #E5E7EB;
+    --text-secondary: #9CA3AF;
+    --text-muted: #6B7280;
+    --accent-primary: #6366F1;
+    --accent-secondary: #4F46E5;
+    --accent-glow: rgba(99, 102, 241, 0.15);
+
     --accent-emerald: #10B981;
     --accent-blue: #3B82F6;
     --accent-amber: #F59E0B;
     --accent-crimson: #EF4444;
-    background-color: #0B0F1A;
-    color: #E5E7EB;
+
+    background-color: var(--surface-base);
+    color: var(--text-primary);
     font-size: 14px;
     line-height: 1.5;
+    transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease;
   }
 
   .theme-sentinel {
@@ -35,6 +52,7 @@
     --surface-card: #1A0A0A;
     --surface-overlay: #250F0F;
     --surface-border: #3D1414;
+    --surface-muted: #4A1515;
     --text-primary: #FEF2F2;
     --text-secondary: #FECACA;
     --text-muted: #991B1B;
@@ -49,6 +67,7 @@
     --surface-card: #efe9de;
     --surface-overlay: #e8e0d2;
     --surface-border: #e6dfd8;
+    --surface-muted: #dcd4c6;
     --text-primary: #141413;
     --text-secondary: #3d3d3a;
     --text-muted: #6c6a64;
@@ -231,30 +250,31 @@
   cursor: default;
 }
 
+/* ── React Flow dark overrides ──────────────────────────── */
 .react-flow__background {
-  background-color: #0B0F1A !important;
+  background-color: var(--surface-base) !important;
 }
 
 .react-flow__controls {
   box-shadow: none !important;
-  border: 1px solid #1E2A3D !important;
+  border: 1px solid var(--surface-border) !important;
   border-radius: 10px !important;
   overflow: hidden;
-  background: #141B2D !important;
+  background: var(--surface-raised) !important;
 }
 
 .react-flow__controls button {
-  background-color: #141B2D !important;
+  background-color: var(--surface-raised) !important;
   border: none !important;
-  border-bottom: 1px solid #1E2A3D !important;
-  color: #6B7280 !important;
+  border-bottom: 1px solid var(--surface-border) !important;
+  color: var(--text-muted) !important;
   width: 28px !important;
   height: 28px !important;
 }
 
 .react-flow__controls button:hover {
-  background-color: #1A2236 !important;
-  color: #E5E7EB !important;
+  background-color: var(--surface-overlay) !important;
+  color: var(--text-primary) !important;
 }
 
 .react-flow__controls button:last-child {
