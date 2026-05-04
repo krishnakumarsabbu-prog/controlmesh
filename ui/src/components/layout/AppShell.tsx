@@ -2,6 +2,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Network, Layers, ShieldCheck, ScrollText, Presentation, Terminal, Zap, Sparkles, CirclePlay as PlayCircle, RotateCcw } from 'lucide-react';
 import TopBar from './TopBar';
 import FleetStatusMini from './FleetStatusMini';
+import FloatingAssistant from '../shared/FloatingAssistant';
 
 const NAV = [
   { to: '/dashboard',           icon: LayoutDashboard, label: 'Dashboard'       },
@@ -142,6 +143,9 @@ export default function AppShell() {
           <Outlet />
         </main>
       </div>
+
+      {/* Global floating AI assistant — visible on all pages */}
+      <FloatingAssistant />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion';
-import { X, ChevronDown, Cpu } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, ChevronDown, BrainCircuit } from 'lucide-react';
 
 export interface AssistantMessage {
   id: string;
@@ -8,11 +8,21 @@ export interface AssistantMessage {
   type: 'info' | 'success' | 'warning' | 'error';
 }
 
-interface Props {
-  messages: AssistantMessage[];
-}
+// ── Demo messages that cycle automatically when no external messages provided ──
+const DEMO_MESSAGES: Omit<AssistantMessage, 'id'>[] = [
+  { text: 'Analyzing queue topology...', type: 'info' },
+  { text: 'Planning migration for APP1 → QM.APP1', type: 'info' },
+  { text: 'Executing step 1 of 4: snapshot channels', type: 'info' },
+  { text: 'Executing step 2 of 4: provision target', type: 'info' },
+  { text: 'Executing step 3 of 4: rewire connections', type: 'warning' },
+  { text: 'Validation successful — latency within SLA', type: 'success' },
+  { text: 'Migration complete. Monitoring drift...', type: 'success' },
+  { text: 'Policy check passed for all 6 apps', type: 'success' },
+  { text: 'Detecting anomaly in QM.SRC.B throughput', type: 'warning' },
+  { text: 'Rollback checkpoint saved', type: 'info' },
+];
 
-// ── Typing cursor effect ──────────────────────────────────────────────────────
+// ── Typing cursor ─────────────────────────────────────────────────────────────
 function TypingText({ text, onDone }: { text: string; onDone?: () => void }) {
   const [displayed, setDisplayed] = useState('');
   const [done, setDone] = useState(false);
@@ -31,7 +41,7 @@ function TypingText({ text, onDone }: { text: string; onDone?: () => void }) {
         setDone(true);
         onDone?.();
       }
-    }, 18);
+    }, 22);
     return () => clearInterval(iv);
   }, [text, onDone]);
 
@@ -40,76 +50,61 @@ function TypingText({ text, onDone }: { text: string; onDone?: () => void }) {
       {displayed}
       {!done && (
         <span
-          className="inline-block w-[2px] h-3 ml-0.5 align-middle rounded-full"
-          style={{ background: 'currentColor', animation: 'blink 0.7s step-end infinite' }}
+          className="inline-block w-[2px] h-3 ml-0.5 align-middle rounded-sm"
+          style={{ background: 'currentColor', animation: 'fa-blink 0.65s step-end infinite' }}
         />
       )}
     </span>
   );
 }
 
-// ── Message type tokens ───────────────────────────────────────────────────────
-const TYPE = {
-  info:    { text: 'text-sky-200',   dot: '#38BDF8', bg: 'rgba(56,189,248,0.07)'  },
-  success: { text: 'text-emerald-300', dot: '#34D399', bg: 'rgba(52,211,153,0.07)' },
-  warning: { text: 'text-amber-300', dot: '#FBBF24', bg: 'rgba(251,191,36,0.07)'  },
-  error:   { text: 'text-red-300',   dot: '#F87171', bg: 'rgba(248,113,113,0.07)' },
+// ── Message style tokens ──────────────────────────────────────────────────────
+const MSG_STYLE = {
+  info:    { text: 'text-sky-200',    dot: '#38BDF8', bg: 'rgba(56,189,248,0.07)'  },
+  success: { text: 'text-emerald-300',dot: '#34D399', bg: 'rgba(52,211,153,0.08)'  },
+  warning: { text: 'text-amber-300',  dot: '#FBBF24', bg: 'rgba(251,191,36,0.07)'  },
+  error:   { text: 'text-red-300',    dot: '#F87171', bg: 'rgba(248,113,113,0.07)' },
 } satisfies Record<AssistantMessage['type'], { text: string; dot: string; bg: string }>;
 
-// ── Avatar with gradient ring + glow ─────────────────────────────────────────
-function Avatar({ open, hasUnread }: { open: boolean; hasUnread: boolean }) {
-  return (
-    // Outer gradient ring
-    <div
-      className="relative w-14 h-14 rounded-full p-[2px]"
-      style={{
-        background: open
-          ? 'linear-gradient(135deg, #06B6D4, #0EA5E9, #3B82F6)'
-          : 'linear-gradient(135deg, #0EA5E9, #06B6D4, #22D3EE)',
-        boxShadow: open
-          ? '0 0 0 4px rgba(6,182,212,0.15), 0 0 24px rgba(6,182,212,0.35), 0 8px 24px rgba(0,0,0,0.5)'
-          : '0 0 0 4px rgba(14,165,233,0.12), 0 0 18px rgba(14,165,233,0.25), 0 6px 20px rgba(0,0,0,0.4)',
-      }}
-    >
-      {/* Inner circle */}
-      <div
-        className="w-full h-full rounded-full flex items-center justify-center overflow-hidden"
-        style={{
-          background: 'linear-gradient(145deg, #0C1A2E 0%, #0A1628 60%, #071120 100%)',
-        }}
-      >
-        {open ? (
-          <X className="w-5 h-5 text-sky-300" />
-        ) : (
-          <Cpu className="w-5 h-5 text-sky-400" />
-        )}
-      </div>
-
-      {/* Unread badge */}
-      <AnimatePresence>
-        {hasUnread && !open && (
-          <motion.span
-            key="badge"
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            exit={{ scale: 0 }}
-            className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-bold text-white px-1"
-            style={{ background: '#22C55E', boxShadow: '0 0 8px rgba(34,197,94,0.7)' }}
-          />
-        )}
-      </AnimatePresence>
-    </div>
-  );
+interface Props {
+  /** Pass external messages to override demo mode */
+  messages?: AssistantMessage[];
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
-export default function FloatingAssistant({ messages }: Props) {
+let _idCounter = 0;
+function nextId() { return `fa-${++_idCounter}`; }
+
+export default function FloatingAssistant({ messages: externalMessages }: Props) {
   const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [unread, setUnread] = useState(0);
   const prevLenRef = useRef(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const demoIdxRef = useRef(0);
 
-  // Track new messages
+  // Seed with first demo message immediately, then cycle
+  useEffect(() => {
+    if (externalMessages) return; // driven externally
+
+    const push = () => {
+      const demo = DEMO_MESSAGES[demoIdxRef.current % DEMO_MESSAGES.length];
+      demoIdxRef.current++;
+      const msg: AssistantMessage = { id: nextId(), ...demo };
+      setMessages((prev) => [...prev.slice(-19), msg]); // keep last 20
+    };
+
+    push(); // first message right away
+    const iv = setInterval(push, 4500);
+    return () => clearInterval(iv);
+  }, [externalMessages]);
+
+  // Sync external messages
+  useEffect(() => {
+    if (!externalMessages) return;
+    setMessages(externalMessages);
+  }, [externalMessages]);
+
+  // Unread counter
   useEffect(() => {
     if (messages.length > prevLenRef.current) {
       if (!open) setUnread((n) => n + (messages.length - prevLenRef.current));
@@ -117,65 +112,65 @@ export default function FloatingAssistant({ messages }: Props) {
     }
   }, [messages.length, open]);
 
-  // Auto-scroll on open / new messages
+  // Clear unread + scroll on open
   useEffect(() => {
     if (open) {
       setUnread(0);
       setTimeout(() => {
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-      }, 80);
+      }, 100);
     }
   }, [open, messages.length]);
 
   const lastMsg = messages[messages.length - 1];
 
-  // Subtle floating y offset using a spring
-  const floatY = useMotionValue(0);
-  const springY = useSpring(floatY, { stiffness: 60, damping: 12 });
-
-  useEffect(() => {
-    let dir = 1;
-    const iv = setInterval(() => {
-      floatY.set(dir * 5);
-      dir *= -1;
-    }, 2200);
-    return () => clearInterval(iv);
-  }, [floatY]);
-
   return (
     <>
-      {/* Blink keyframe */}
-      <style>{`@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}`}</style>
+      <style>{`
+        @keyframes fa-blink { 0%,100%{opacity:1} 50%{opacity:0} }
+        @keyframes fa-float {
+          0%,100% { transform: translateY(0px); }
+          50%      { transform: translateY(-7px); }
+        }
+        .fa-float { animation: fa-float 3.6s ease-in-out infinite; }
+        @keyframes fa-pulse-ring {
+          0%   { transform: scale(1);    opacity: 0.6; }
+          100% { transform: scale(1.75); opacity: 0;   }
+        }
+        .fa-ring-1 { animation: fa-pulse-ring 2s ease-out infinite; }
+        .fa-ring-2 { animation: fa-pulse-ring 2s ease-out infinite 0.6s; }
+      `}</style>
 
-      <motion.div
-        className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2.5"
-        style={{ y: springY }}
-      >
-        {/* Collapsed preview tooltip */}
-        <AnimatePresence>
+      <div className="fixed bottom-6 right-6 z-[9999] flex flex-col items-end gap-3">
+
+        {/* Collapsed preview bubble */}
+        <AnimatePresence mode="wait">
           {!open && lastMsg && (
             <motion.div
               key={lastMsg.id}
-              initial={{ opacity: 0, y: 8, scale: 0.94 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 6, scale: 0.94 }}
-              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              initial={{ opacity: 0, y: 10, scale: 0.92 }}
+              animate={{ opacity: 1, y: 0,  scale: 1    }}
+              exit={{ opacity: 0,    y: 6,  scale: 0.92 }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
               onClick={() => setOpen(true)}
-              className="cursor-pointer max-w-[240px] rounded-2xl rounded-br-sm px-3.5 py-2.5"
+              className="cursor-pointer max-w-[220px] rounded-2xl rounded-br-sm px-3.5 py-2.5 select-none"
               style={{
-                background: 'rgba(10,18,32,0.92)',
-                border: '1px solid rgba(14,165,233,0.2)',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.45), 0 0 12px rgba(14,165,233,0.08)',
-                backdropFilter: 'blur(14px)',
+                background: 'rgba(8,15,30,0.95)',
+                border: `1px solid ${MSG_STYLE[lastMsg.type].dot}40`,
+                boxShadow: `0 8px 28px rgba(0,0,0,0.5), 0 0 16px ${MSG_STYLE[lastMsg.type].dot}18`,
+                backdropFilter: 'blur(16px)',
               }}
             >
               <div className="flex items-start gap-2">
                 <span
-                  className="mt-1 w-1.5 h-1.5 rounded-full shrink-0"
-                  style={{ background: TYPE[lastMsg.type].dot, boxShadow: `0 0 5px ${TYPE[lastMsg.type].dot}` }}
+                  className="mt-[5px] w-1.5 h-1.5 rounded-full shrink-0"
+                  style={{
+                    background: MSG_STYLE[lastMsg.type].dot,
+                    boxShadow: `0 0 6px ${MSG_STYLE[lastMsg.type].dot}`,
+                  }}
                 />
-                <p className={`text-xs leading-relaxed font-medium ${TYPE[lastMsg.type].text}`}>
-                  {lastMsg.text}
+                <p className={`text-[11px] leading-relaxed font-medium ${MSG_STYLE[lastMsg.type].text}`}>
+                  <TypingText key={lastMsg.id} text={lastMsg.text} />
                 </p>
               </div>
             </motion.div>
@@ -186,99 +181,95 @@ export default function FloatingAssistant({ messages }: Props) {
         <AnimatePresence>
           {open && (
             <motion.div
-              initial={{ opacity: 0, y: 18, scale: 0.94 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 18, scale: 0.94 }}
-              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+              initial={{ opacity: 0, y: 20, scale: 0.93 }}
+              animate={{ opacity: 1, y: 0,  scale: 1    }}
+              exit={{ opacity: 0,    y: 20, scale: 0.93 }}
+              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
               className="flex flex-col overflow-hidden"
               style={{
-                width: '300px',
-                maxHeight: '420px',
-                background: 'rgba(8,16,30,0.96)',
-                border: '1px solid rgba(14,165,233,0.22)',
-                borderRadius: '20px',
+                width: '310px',
+                maxHeight: '430px',
+                background: 'rgba(6,12,24,0.97)',
+                border: '1px solid rgba(14,165,233,0.25)',
+                borderRadius: '22px',
                 boxShadow:
-                  '0 24px 48px rgba(0,0,0,0.6), 0 8px 16px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.06)',
-                backdropFilter: 'blur(20px)',
+                  '0 28px 56px rgba(0,0,0,0.65), 0 8px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)',
+                backdropFilter: 'blur(24px)',
               }}
             >
-              {/* Header */}
+              {/* Panel header */}
               <div
-                className="flex items-center justify-between px-4 py-3 shrink-0"
+                className="flex items-center justify-between px-4 py-3.5 shrink-0"
                 style={{
-                  borderBottom: '1px solid rgba(14,165,233,0.14)',
-                  background: 'rgba(6,12,24,0.6)',
+                  borderBottom: '1px solid rgba(14,165,233,0.12)',
+                  background: 'rgba(4,10,20,0.7)',
                 }}
               >
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-3">
                   <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center"
+                    className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
                     style={{
-                      background: 'linear-gradient(135deg, rgba(6,182,212,0.2) 0%, rgba(14,165,233,0.1) 100%)',
-                      border: '1px solid rgba(6,182,212,0.35)',
-                      boxShadow: '0 0 10px rgba(6,182,212,0.2)',
+                      background: 'linear-gradient(135deg, rgba(14,165,233,0.25) 0%, rgba(6,182,212,0.15) 100%)',
+                      border: '1px solid rgba(14,165,233,0.4)',
+                      boxShadow: '0 0 12px rgba(14,165,233,0.25)',
                     }}
                   >
-                    <Cpu className="w-3.5 h-3.5 text-sky-400" />
+                    <BrainCircuit className="w-4 h-4 text-sky-400" />
                   </div>
                   <div>
-                    <div className="text-sm font-semibold text-white leading-none">Migration Agent</div>
+                    <div className="text-[13px] font-semibold text-white leading-none">Migration Agent</div>
                     <div className="flex items-center gap-1.5 mt-1">
                       <span
                         className="w-1.5 h-1.5 rounded-full"
-                        style={{ background: '#34D399', boxShadow: '0 0 5px rgba(52,211,153,0.8)' }}
+                        style={{ background: '#34D399', boxShadow: '0 0 5px rgba(52,211,153,0.9)' }}
                       />
-                      <span className="text-[10px] text-sky-400/70 font-medium tracking-wide">Active</span>
+                      <span className="text-[10px] font-medium tracking-wide" style={{ color: 'rgba(52,211,153,0.8)' }}>
+                        Active
+                      </span>
                     </div>
                   </div>
                 </div>
                 <button
                   onClick={() => setOpen(false)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-white transition-colors"
-                  style={{ background: 'rgba(255,255,255,0.05)' }}
+                  className="w-7 h-7 flex items-center justify-center rounded-full transition-colors"
+                  style={{ background: 'rgba(255,255,255,0.06)', color: '#94A3B8' }}
                 >
                   <ChevronDown className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Messages */}
+              {/* Message list */}
               <div
                 ref={scrollRef}
-                className="flex-1 overflow-y-auto px-3 py-3 space-y-2 min-h-0"
+                className="flex-1 overflow-y-auto px-3 py-3 space-y-1.5 min-h-0"
                 style={{ scrollbarWidth: 'none' }}
               >
                 {messages.length === 0 && (
-                  <p className="text-xs text-slate-500 text-center py-8">Waiting for activity…</p>
+                  <p className="text-xs text-slate-500 text-center py-10">Waiting for activity…</p>
                 )}
                 {messages.map((msg, i) => {
-                  const t = TYPE[msg.type];
+                  const s = MSG_STYLE[msg.type];
+                  const isLast = i === messages.length - 1;
                   return (
                     <motion.div
                       key={msg.id}
-                      initial={{ opacity: 0, x: -8, y: 4 }}
-                      animate={{ opacity: 1, x: 0, y: 0 }}
-                      transition={{ duration: 0.22 }}
+                      initial={{ opacity: 0, x: -10, y: 4 }}
+                      animate={{ opacity: 1,  x: 0,   y: 0 }}
+                      transition={{ duration: 0.2 }}
                       className="flex gap-2 rounded-xl px-3 py-2"
-                      style={{ background: t.bg }}
+                      style={{ background: s.bg }}
                     >
                       <span
                         className="mt-[6px] w-1.5 h-1.5 rounded-full shrink-0"
-                        style={{ background: t.dot, boxShadow: `0 0 5px ${t.dot}` }}
+                        style={{ background: s.dot, boxShadow: `0 0 5px ${s.dot}` }}
                       />
-                      <p className={`text-xs leading-relaxed ${t.text}`}>
-                        {i === messages.length - 1 ? (
-                          <TypingText
-                            text={msg.text}
-                            onDone={() => {
-                              scrollRef.current?.scrollTo({
-                                top: scrollRef.current.scrollHeight,
-                                behavior: 'smooth',
-                              });
-                            }}
-                          />
-                        ) : (
-                          msg.text
-                        )}
+                      <p className={`text-[11px] leading-relaxed ${s.text}`}>
+                        {isLast
+                          ? <TypingText key={msg.id} text={msg.text} onDone={() => {
+                              scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+                            }} />
+                          : msg.text
+                        }
                       </p>
                     </motion.div>
                   );
@@ -288,57 +279,94 @@ export default function FloatingAssistant({ messages }: Props) {
           )}
         </AnimatePresence>
 
-        {/* FAB — circular avatar button */}
-        <motion.button
-          onClick={() => setOpen((v) => !v)}
-          whileHover={{ scale: 1.07 }}
-          whileTap={{ scale: 0.93 }}
-          className="relative focus:outline-none"
-          aria-label="Toggle AI assistant"
-        >
-          {/* Idle pulse ring — only when closed */}
-          {!open && (
-            <>
-              <motion.span
-                className="absolute inset-0 rounded-full"
-                style={{
-                  background: 'transparent',
-                  border: '2px solid rgba(14,165,233,0.5)',
-                }}
-                animate={{ scale: [1, 1.55], opacity: [0.5, 0] }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'easeOut' }}
-              />
-              <motion.span
-                className="absolute inset-0 rounded-full"
-                style={{
-                  background: 'transparent',
-                  border: '2px solid rgba(6,182,212,0.35)',
-                }}
-                animate={{ scale: [1, 1.85], opacity: [0.35, 0] }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'easeOut', delay: 0.5 }}
-              />
-            </>
-          )}
-
-          <Avatar open={open} hasUnread={unread > 0} />
-
-          {/* Unread dot */}
-          <AnimatePresence>
-            {unread > 0 && !open && (
-              <motion.span
-                key="dot"
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                exit={{ scale: 0 }}
-                className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-bold text-white px-1"
-                style={{ background: '#22C55E', boxShadow: '0 0 8px rgba(34,197,94,0.7)' }}
-              >
-                {unread}
-              </motion.span>
+        {/* FAB — circular avatar with pulse rings */}
+        <div className={!open ? 'fa-float' : ''}>
+          <motion.button
+            onClick={() => setOpen((v) => !v)}
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.92 }}
+            className="relative focus:outline-none"
+            aria-label="Toggle AI assistant"
+          >
+            {/* Pulse rings — only when closed */}
+            {!open && (
+              <>
+                <span
+                  className="fa-ring-1 absolute inset-0 rounded-full pointer-events-none"
+                  style={{ border: '2px solid rgba(14,165,233,0.55)' }}
+                />
+                <span
+                  className="fa-ring-2 absolute inset-0 rounded-full pointer-events-none"
+                  style={{ border: '2px solid rgba(6,182,212,0.35)' }}
+                />
+              </>
             )}
-          </AnimatePresence>
-        </motion.button>
-      </motion.div>
+
+            {/* Gradient border ring */}
+            <div
+              className="w-14 h-14 rounded-full flex items-center justify-center"
+              style={{
+                background: open
+                  ? 'linear-gradient(135deg, #0EA5E9, #06B6D4, #22D3EE)'
+                  : 'linear-gradient(135deg, #0EA5E9, #06B6D4, #67E8F9)',
+                padding: '2.5px',
+                boxShadow: open
+                  ? '0 0 0 4px rgba(6,182,212,0.15), 0 0 28px rgba(14,165,233,0.45), 0 8px 24px rgba(0,0,0,0.55)'
+                  : '0 0 0 3px rgba(14,165,233,0.1), 0 0 20px rgba(14,165,233,0.3), 0 6px 20px rgba(0,0,0,0.45)',
+              }}
+            >
+              {/* Inner avatar circle */}
+              <div
+                className="w-full h-full rounded-full flex items-center justify-center overflow-hidden"
+                style={{
+                  background: 'linear-gradient(150deg, #0C1D35 0%, #071628 55%, #050E1E 100%)',
+                }}
+              >
+                <AnimatePresence mode="wait">
+                  {open ? (
+                    <motion.div
+                      key="close"
+                      initial={{ scale: 0, rotate: -90 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      exit={{ scale: 0, rotate: 90 }}
+                      transition={{ duration: 0.18 }}
+                    >
+                      <X className="w-5 h-5 text-sky-300" />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="brain"
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      exit={{ scale: 0 }}
+                      transition={{ duration: 0.18 }}
+                    >
+                      <BrainCircuit className="w-5 h-5 text-sky-400" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+
+            {/* Unread badge */}
+            <AnimatePresence>
+              {unread > 0 && !open && (
+                <motion.span
+                  key="badge"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  exit={{ scale: 0 }}
+                  className="absolute -top-1 -right-1 min-w-[20px] h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white px-1"
+                  style={{ background: '#22C55E', boxShadow: '0 0 10px rgba(34,197,94,0.8)' }}
+                >
+                  {unread}
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </motion.button>
+        </div>
+
+      </div>
     </>
   );
 }
