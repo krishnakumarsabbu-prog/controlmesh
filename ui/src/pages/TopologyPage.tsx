@@ -21,13 +21,13 @@ interface AnalysisResult {
 
 const MOCK_ANALYSIS: AnalysisResult = {
   riskLevel: 'HIGH',
-  reason: 'Shared queue manager',
-  agentMessage: 'High dependency detected between applications',
+  reason: 'Shared queue manager infrastructure',
+  agentMessage: 'High dependency detected between APP1–APP6 on shared source QMs',
   details: [
-    'QM.SRC.A serves 4 applications concurrently — single point of failure',
-    'QM.SRC.B serves 2 applications with overlapping queue definitions',
-    'Cross-application queue name collisions detected on Q1, Q2, Q3',
-    'No isolation boundary between APP1–APP4 workloads',
+    'QM.SRC.A serves APP1, APP2, APP3 concurrently — single point of failure',
+    'QM.SRC.B serves APP4, APP5, APP6 with overlapping queue definitions',
+    'No isolation boundary between application workloads detected',
+    'Shared DLQs (Q.SRC.A.DLQ.LOCAL) cause message attribution risk',
   ],
 };
 
@@ -113,16 +113,24 @@ export default function TopologyPage() {
     setProvisionState('loading');
     setProvisionMessage('');
     try {
-      await provisionTopology();
-      setProvisionState('success');
-      setProvisionMessage('Source topology provisioned: 6 apps (AppA–F), 2 queue managers (QM1, QM2), 3 shared queues (Q1–Q3), 1 channel (QM1 → QM2).');
-      refetchFleet();
+      const res = await bootstrapFleet();
+      if (res.status === 'complete') {
+        setProvisionState('success');
+        setProvisionMessage(`Source topology provisioned successfully: ${res.results.length} MQ objects created across QM.SRC.A and QM.SRC.B.`);
+        refetchFleet();
+      } else {
+        throw new Error('Bootstrap returned incomplete status');
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Provisioning failed.';
       setProvisionState('error');
       setProvisionMessage(msg);
     }
   }
+
+  const isEmpty = sourceQMs.length > 0 && 
+    sourceQueueDetails && 
+    Object.values(sourceQueueDetails).every(queues => queues.length === 0);
 
   const rewiringCount = activeChannels.filter((ch) => ch.isRewiring).length;
   const totalChannels = activeChannels.length;
@@ -189,18 +197,46 @@ export default function TopologyPage() {
       {/* Provision feedback banner */}
       {provisionMessage && (
         <div
-          className={`flex items-start gap-3 px-4 py-3 rounded-lg text-sm shrink-0 ${
+          className={`flex items-start justify-between gap-3 px-4 py-3 rounded-lg text-sm shrink-0 ${
             provisionState === 'success'
               ? 'bg-emerald-900/20 border border-emerald-800 text-emerald-300'
               : 'bg-red-900/20 border border-red-800 text-red-300'
           }`}
         >
-          {provisionState === 'success' ? (
-            <CheckCircle className="w-4 h-4 mt-0.5 shrink-0 text-emerald-400" />
-          ) : (
-            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-red-400" />
-          )}
-          <span>{provisionMessage}</span>
+          <div className="flex items-start gap-3">
+            {provisionState === 'success' ? (
+              <CheckCircle className="w-4 h-4 mt-0.5 shrink-0 text-emerald-400" />
+            ) : (
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-red-400" />
+            )}
+            <span>{provisionMessage}</span>
+          </div>
+          <button onClick={() => setProvisionMessage('')} className="text-current opacity-60 hover:opacity-100">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Intelligent Empty State Banner */}
+      {isEmpty && provisionState === 'idle' && (
+        <div className="flex flex-col gap-4 p-6 rounded-2xl bg-surface-card border-2 border-dashed border-surface-border items-center justify-center text-center">
+          <div className="w-16 h-16 rounded-2xl bg-blue-900/20 flex items-center justify-center border border-blue-800/50">
+            <DatabaseZap className="w-8 h-8 text-blue-400" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-text-primary">Clean Fleet Detected</h3>
+            <p className="text-sm text-text-muted mt-1 max-w-md">
+              No application queues were found on your source queue managers. 
+              Would you like to bootstrap the hackathon source topology?
+            </p>
+          </div>
+          <button
+            onClick={handleProvision}
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-900/20 transition-all flex items-center gap-2"
+          >
+            <DatabaseZap className="w-4 h-4" />
+            Provision Hackathon Topology
+          </button>
         </div>
       )}
 

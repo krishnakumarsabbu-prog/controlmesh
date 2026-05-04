@@ -53,23 +53,20 @@ def generate_target_topology() -> dict:
     """
     Generate the target topology where each application gets its own
     dedicated queue manager with app-specific queues.
-
-    AppA → QM_APP_A, AppB → QM_APP_B, ... AppF → QM_APP_F
     """
-    apps = ["AppA", "AppB", "AppC", "AppD", "AppE", "AppF"]
+    apps = ["APP1", "APP2", "APP3", "APP4", "APP5", "APP6"]
     queue_managers = []
 
     for app in apps:
-        app_upper = app.upper()
-        qm_name = f"QM_{app_upper}"
+        qm_name = f"QM.{app}"
         queue_managers.append({
             "name": qm_name,
             "role": "target",
             "apps": [app],
             "queues": [
-                {"name": f"{app_upper}.REQUEST", "type": "LOCAL", "shared": False},
-                {"name": f"{app_upper}.REPLY", "type": "LOCAL", "shared": False},
-                {"name": f"{app_upper}.DLQ", "type": "LOCAL", "shared": False},
+                {"name": f"Q.{app}.REQUEST.LOCAL", "type": "LOCAL", "shared": False},
+                {"name": f"Q.{app}.RESPONSE.LOCAL", "type": "LOCAL", "shared": False},
+                {"name": f"Q.{app}.DLQ.LOCAL", "type": "LOCAL", "shared": False},
             ],
         })
 
@@ -86,30 +83,38 @@ def generate_target_topology() -> dict:
 SOURCE_TOPOLOGY: dict = {
     "queue_managers": [
         {
-            "name": "QM1",
+            "name": "QM.SRC.A",
             "role": "source",
-            "apps": ["AppA", "AppB", "AppC"],
+            "apps": ["APP1", "APP2", "APP3"],
             "queues": [
-                {"name": "Q1", "type": "LOCAL", "shared": True},
-                {"name": "Q2", "type": "LOCAL", "shared": True},
-                {"name": "Q3", "type": "LOCAL", "shared": True},
+                {"name": "Q.APP1.REQUEST.LOCAL", "type": "LOCAL", "shared": True},
+                {"name": "Q.APP1.RESPONSE.LOCAL", "type": "LOCAL", "shared": True},
+                {"name": "Q.APP2.REQUEST.LOCAL", "type": "LOCAL", "shared": True},
+                {"name": "Q.APP2.RESPONSE.LOCAL", "type": "LOCAL", "shared": True},
+                {"name": "Q.APP3.REQUEST.LOCAL", "type": "LOCAL", "shared": True},
+                {"name": "Q.APP3.RESPONSE.LOCAL", "type": "LOCAL", "shared": True},
+                {"name": "Q.SRC.A.DLQ.LOCAL", "type": "LOCAL", "shared": True},
             ],
         },
         {
-            "name": "QM2",
+            "name": "QM.SRC.B",
             "role": "source",
-            "apps": ["AppD", "AppE", "AppF"],
+            "apps": ["APP4", "APP5", "APP6"],
             "queues": [
-                {"name": "Q1", "type": "LOCAL", "shared": True},
-                {"name": "Q2", "type": "LOCAL", "shared": True},
-                {"name": "Q3", "type": "LOCAL", "shared": True},
+                {"name": "Q.APP4.REQUEST.LOCAL", "type": "LOCAL", "shared": True},
+                {"name": "Q.APP4.RESPONSE.LOCAL", "type": "LOCAL", "shared": True},
+                {"name": "Q.APP5.REQUEST.LOCAL", "type": "LOCAL", "shared": True},
+                {"name": "Q.APP5.RESPONSE.LOCAL", "type": "LOCAL", "shared": True},
+                {"name": "Q.APP6.REQUEST.LOCAL", "type": "LOCAL", "shared": True},
+                {"name": "Q.APP6.RESPONSE.LOCAL", "type": "LOCAL", "shared": True},
+                {"name": "Q.SRC.B.DLQ.LOCAL", "type": "LOCAL", "shared": True},
             ],
         },
     ],
     "channels": [
-        {"name": "QM1.TO.QM2", "from": "QM1", "to": "QM2", "type": "SDR"},
+        {"name": "CHL.SRCA.SRCB", "from": "QM.SRC.A", "to": "QM.SRC.B", "type": "SDR"},
     ],
-    "applications": ["AppA", "AppB", "AppC", "AppD", "AppE", "AppF"],
+    "applications": ["APP1", "APP2", "APP3", "APP4", "APP5", "APP6"],
     "total_queue_managers": 2,
     "total_apps": 6,
     "total_channels": 1,

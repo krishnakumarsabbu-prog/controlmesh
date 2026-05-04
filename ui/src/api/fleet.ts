@@ -54,16 +54,16 @@ export async function fetchActiveChannels(): Promise<TopologyChannel[]> {
 
 export async function fetchTargetTopology(): Promise<TargetTopology> {
   if (IS_MOCK) {
-    const apps = ['AppA', 'AppB', 'AppC', 'AppD', 'AppE', 'AppF'];
+    const apps = ['APP1', 'APP2', 'APP3', 'APP4', 'APP5', 'APP6'];
     return {
       queue_managers: apps.map((app) => ({
-        name: `QM_${app.toUpperCase()}`,
+        name: `QM.${app}`,
         role: 'target' as const,
         apps: [app],
         queues: [
-          { name: `${app.toUpperCase()}.REQUEST`, type: 'LOCAL', shared: false },
-          { name: `${app.toUpperCase()}.REPLY`, type: 'LOCAL', shared: false },
-          { name: `${app.toUpperCase()}.DLQ`, type: 'LOCAL', shared: false },
+          { name: `Q.${app}.REQUEST.LOCAL`, type: 'LOCAL', shared: false },
+          { name: `Q.${app}.RESPONSE.LOCAL`, type: 'LOCAL', shared: false },
+          { name: `Q.${app}.DLQ.LOCAL`, type: 'LOCAL', shared: false },
         ],
       })),
       channels: [],
@@ -73,6 +73,22 @@ export async function fetchTargetTopology(): Promise<TargetTopology> {
       total_channels: 0,
     };
   }
-  const { data } = await bclClient.get('/api/topology/target');
-  return data.topology;
+  const { data } = await bclClient.get('/api/fleet/topology');
+  return data.target;
+}
+
+export async function bootstrapFleet(): Promise<{ status: string; results: any[] }> {
+  if (IS_MOCK) {
+    return { status: 'complete', results: [] };
+  }
+  const { data } = await bclClient.post('/api/fleet/bootstrap');
+  return data;
+}
+
+export async function fetchFullTopology(): Promise<{ source: any; target: any }> {
+  if (IS_MOCK) {
+    return { source: {}, target: {} };
+  }
+  const { data } = await bclClient.get('/api/fleet/topology');
+  return data;
 }
