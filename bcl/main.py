@@ -36,8 +36,11 @@ app.mount("/metrics", metrics_app)
 
 @app.on_event("startup")
 async def startup():
+    import asyncio
     bootstrap_registry()
     await _recover_in_progress_migrations()
+    from bcl.mq.monitor import monitor_loop
+    asyncio.create_task(monitor_loop())
     log.info("bcl_gateway_started", version="2.0.0")
 
 
