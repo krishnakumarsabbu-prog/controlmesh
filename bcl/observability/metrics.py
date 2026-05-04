@@ -30,3 +30,21 @@ MIGRATION_PHASE_COUNT = Counter(
     "Total migration phase transitions",
     ["app_id", "phase"],
 )
+
+ORCHESTRATOR_RUNS = Counter(
+    "orchestrator_runs_total",
+    "Total orchestrator migration runs",
+    ["status"],  # MIGRATED, ROLLED_BACK, FAILED
+)
+
+ORCHESTRATOR_DURATION = Histogram(
+    "orchestrator_duration_seconds",
+    "Time taken for full migration orchestration",
+    buckets=[5, 15, 30, 60, 120, 300, 600],
+)
+
+AGENT_TOOL_CALLS = Counter(
+    "agent_tool_calls_total",
+    "Tool calls made by agents",
+    ["agent", "tool", "result"],
+)
