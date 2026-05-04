@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, RotateCcw, ChevronDown, ChevronUp, Clock } from 'lucide-react';
+import { Play, RotateCcw, ChevronDown, ChevronUp, Clock, ListChecks, Loader as Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import type { MigrationRecord } from '../../types';
+import type { MigrationRecord, MigrationPlanStep } from '../../types';
+import { planMigration } from '../../api/migration';
 import StateBadge from './StateBadge';
 import MigrationStepper from './MigrationStepper';
+import PlanTimeline from './PlanTimeline';
 
 interface AppConfig { id: string; source: string; target: string; }
 
@@ -18,8 +20,12 @@ interface Props {
 
 const ACTIVE_STATES = ['SNAPSHOTTED', 'PROVISIONING_TARGET', 'REWIRING', 'VALIDATING', 'ROLLING_BACK'];
 
+type ExpandedView = 'stepper' | 'plan' | null;
+
 export default function AppMigrationCard({ app, record, onMigrate, onRollback, isLoading }: Props) {
-  const [expanded, setExpanded] = useState(false);
+  const [expandedView, setExpandedView] = useState<ExpandedView>(null);
+  const [planSteps, setPlanSteps] = useState<MigrationPlanStep[] | null>(null);
+  const [planLoading, setPlanLoading] = useState(false);
   const state = record?.state ?? 'IDLE';
   const canMigrate = state === 'IDLE' || state === 'ROLLED_BACK';
   const canRollback = ['SNAPSHOTTED', 'PROVISIONING_TARGET', 'REWIRING', 'VALIDATING'].includes(state);
@@ -37,6 +43,27 @@ export default function AppMigrationCard({ app, record, onMigrate, onRollback, i
     isActive                ? 'bg-amber-100 text-amber-700'     :
     state === 'ROLLED_BACK' ? 'bg-orange-100 text-orange-700'  :
     'bg-slate-100 text-slate-500';
+
+  const toggleStepper = () => {
+    setExpandedView((v) => v === 'stepper' ? null : 'stepper');
+  };
+
+  const togglePlan = async () => {
+    if (expandedView === 'plan') {
+      setExpandedView(null);
+      return;
+    }
+    setExpandedView('plan');
+    if (!planSteps) {
+      setPlanLoading(true);
+      try {
+        const result = await planMigration(app.id, app.source, app.target);
+        setPlanSteps(result.plan);
+      } finally {
+        setPlanLoading(false);
+      }
+    }
+  };
 
   return (
     <motion.div
@@ -78,10 +105,17 @@ export default function AppMigrationCard({ app, record, onMigrate, onRollback, i
             </button>
           )}
           <button
-            onClick={() => setExpanded(!expanded)}
+            onClick={togglePlan}
+            title="View migration plan"
+            className={`p-1.5 rounded-lg transition-colors ${expandedView === 'plan' ? 'bg-blue-50 text-blue-600' : 'hover:bg-slate-100 text-slate-400'}`}
+          >
+            <ListChecks className="w-4 h-4" />
+          </button>
+          <button
+            onClick={toggleStepper}
             className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
           >
-            {expanded
+            {expandedView === 'stepper'
               ? <ChevronUp className="w-4 h-4 text-slate-400" />
               : <ChevronDown className="w-4 h-4 text-slate-400" />
             }
@@ -100,17 +134,30 @@ export default function AppMigrationCard({ app, record, onMigrate, onRollback, i
         </div>
       )}
 
-      {/* Expanded stepper */}
+      {/* Expanded panel */}
       <AnimatePresence>
-        {expanded && (
+        {expandedView !== null && (
           <motion.div
+            key={expandedView}
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="overflow-hidden border-t border-slate-100"
           >
-            <MigrationStepper record={record} />
+            {expandedView === 'stepper' && (
+              <MigrationStepper record={record} />
+            )}
+            {expandedView === 'plan' && (
+              planLoading ? (
+                <div className="flex items-center justify-center gap-2 py-6 text-sm text-slate-400">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Generating plan…
+                </div>
+              ) : planSteps ? (
+                <PlanTimeline steps={planSteps} />
+              ) : null
+            )}
           </motion.div>
         )}
       </AnimatePresence>

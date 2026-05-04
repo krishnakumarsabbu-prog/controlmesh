@@ -1,6 +1,6 @@
 import { bclClient, IS_MOCK } from './client';
 import { mockApi } from './mock/service';
-import type { MigrationRecord } from '../types';
+import type { MigrationRecord, MigrationPlanResponse } from '../types';
 
 export async function fetchAllMigrations(): Promise<MigrationRecord[]> {
   if (IS_MOCK) return mockApi.getAllMigrations();
@@ -30,4 +30,18 @@ export async function executeMigration(
 export async function rollbackMigration(appId: string): Promise<void> {
   if (IS_MOCK) return mockApi.rollbackMigration(appId);
   await bclClient.post(`/api/migration/${appId}/rollback`);
+}
+
+export async function planMigration(
+  appId: string,
+  sourceQm: string,
+  targetQm: string
+): Promise<MigrationPlanResponse> {
+  if (IS_MOCK) return mockApi.planMigration(appId, sourceQm, targetQm);
+  const { data } = await bclClient.post('/api/migration/plan', {
+    app_id: appId,
+    source_qm: sourceQm,
+    target_qm: targetQm,
+  });
+  return data;
 }

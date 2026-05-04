@@ -41,6 +41,22 @@ export interface MigrationPlan {
   steps: MigrationStep[];
 }
 
+export interface MigrationPlanStep {
+  step: number;
+  phase: string;
+  description: string;
+  qm: string;
+  status: 'pending';
+}
+
+export interface MigrationPlanResponse {
+  app_id: string;
+  source_qm: string;
+  target_qm: string;
+  plan: MigrationPlanStep[];
+  total_steps: number;
+}
+
 // ── Migration state machine ───────────────────────────────────────────────────
 
 export type MigrationState =

@@ -1,4 +1,4 @@
-import type { MigrationRecord, MigrationState, ValidationResult } from '../../types';
+import type { MigrationRecord, MigrationState, ValidationResult, MigrationPlanResponse } from '../../types';
 import {
   MOCK_FLEET,
   MOCK_MIGRATIONS,
@@ -151,6 +151,26 @@ export const mockApi = {
     await delay(200);
     const m = migrations[appId];
     return m ? [m] : [];
+  },
+
+  async planMigration(appId: string, sourceQm: string, targetQm: string): Promise<MigrationPlanResponse> {
+    await delay(600);
+    const safeId = appId.replace('-', '').toUpperCase();
+    return {
+      app_id: appId,
+      source_qm: sourceQm,
+      target_qm: targetQm,
+      total_steps: 7,
+      plan: [
+        { step: 1, phase: 'BASELINE_VALIDATION', description: `Validate source flows are operational on ${sourceQm}`, qm: sourceQm, status: 'pending' },
+        { step: 2, phase: 'SNAPSHOT', description: `Capture pre-migration topology snapshot of ${sourceQm}`, qm: sourceQm, status: 'pending' },
+        { step: 3, phase: 'PROVISION_TARGET', description: `Create target QM ${targetQm} with DLQ Q.${safeId}.DLQ.LOCAL, application queues, channels, and listener`, qm: targetQm, status: 'pending' },
+        { step: 4, phase: 'REWIRE', description: `Install xmit queue and remote queue definitions on ${sourceQm} to transparently route traffic to ${targetQm}`, qm: sourceQm, status: 'pending' },
+        { step: 5, phase: 'POST_REWIRE_VALIDATION', description: 'Verify transparent routing: producers unchanged, messages reach target', qm: targetQm, status: 'pending' },
+        { step: 6, phase: 'CUTOVER', description: `Remove local queue from ${sourceQm} to complete cutover`, qm: sourceQm, status: 'pending' },
+        { step: 7, phase: 'FINAL_VALIDATION', description: 'Confirm final state and message delivery on target QM', qm: targetQm, status: 'pending' },
+      ],
+    };
   },
 
   // SSE subscription for mock stream
