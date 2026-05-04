@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { Network, Layers, ShieldCheck, ScrollText, Presentation } from 'lucide-react';
+import { Network, Layers, ShieldCheck, ScrollText, Presentation, Terminal } from 'lucide-react';
 import TopBar from './TopBar';
 import FleetStatusMini from './FleetStatusMini';
 
@@ -7,6 +7,7 @@ const NAV = [
   { to: '/topology',   icon: Network,      label: 'Topology'   },
   { to: '/migration',  icon: Layers,       label: 'Migration'  },
   { to: '/validation', icon: ShieldCheck,  label: 'Validation' },
+  { to: '/logs',       icon: Terminal,     label: 'Logs'       },
   { to: '/audit',      icon: ScrollText,   label: 'Audit Log'  },
   { to: '/demo',       icon: Presentation, label: 'Demo'       },
 ];

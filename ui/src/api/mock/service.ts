@@ -7,6 +7,7 @@ import {
   MOCK_QUEUES,
   MOCK_QUEUES_BY_STATE,
   MOCK_CHANNELS,
+  MOCK_LOGS,
 } from './data';
 
 const delay = (ms = 400) => new Promise((r) => setTimeout(r, ms));
@@ -314,6 +315,15 @@ export const mockApi = {
     notifyRollbackStepListeners(appId);
 
     simulateRollbackProgress(appId);
+  },
+
+  async getLogs(filters: { category?: string; level?: string; app_id?: string; limit?: number }) {
+    await delay(250);
+    let entries = [...MOCK_LOGS].sort((a, b) => b.timestamp - a.timestamp);
+    if (filters.category) entries = entries.filter((e) => e.category === filters.category);
+    if (filters.level) entries = entries.filter((e) => e.level === filters.level);
+    if (filters.app_id) entries = entries.filter((e) => e.app_id === filters.app_id);
+    return entries.slice(0, filters.limit ?? 200);
   },
 
   async getAuditLog(filters: { operation?: string; qm?: string; limit?: number }) {

@@ -195,6 +195,26 @@ export interface SystemValidationChannel {
   target_qm: string;
 }
 
+// ── Logs ──────────────────────────────────────────────────────────────────────
+
+export type LogLevel = 'INFO' | 'WARNING' | 'ERROR' | 'DEBUG';
+export type LogCategory = 'migration' | 'validation' | 'rollback' | 'system';
+
+export interface LogEntry {
+  timestamp: number;
+  level: LogLevel;
+  category: LogCategory;
+  message: string;
+  app_id?: string;
+  trace_id?: string;
+  phase?: string;
+  source_qm?: string;
+  target_qm?: string;
+  qm?: string;
+  error?: string;
+  [key: string]: unknown;
+}
+
 // ── SSE events ────────────────────────────────────────────────────────────────
 
 export interface SSEMigrationEvent {

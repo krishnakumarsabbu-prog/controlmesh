@@ -14,6 +14,8 @@ from bcl.policy.mca import check_mca_authz
 from bcl.policy.dlq import check_dlq_configured
 from bcl.policy.system_rules import validate_system
 
+from bcl.observability.log_store import emit as _emit
+
 log = structlog.get_logger()
 router = APIRouter(tags=["validation"])
 
@@ -48,13 +50,25 @@ async def validate_operations(payload: ValidationRequest, request: Request):
         })
 
     all_valid = all(r["valid"] for r in results)
+    valid_count = sum(1 for r in results if r["valid"])
     log.info(
         "validation_run",
         app_id=payload.app_id,
         qm=payload.qm_name,
         total=len(results),
-        valid=sum(1 for r in results if r["valid"]),
+        valid=valid_count,
         trace_id=trace_id,
+    )
+    await _emit(
+        f"Validation {'passed' if all_valid else 'failed'}: {valid_count}/{len(results)} operations valid"
+        + (f" on {payload.qm_name}" if payload.qm_name else ""),
+        category="validation",
+        level="INFO" if all_valid else "WARNING",
+        app_id=payload.app_id,
+        qm=payload.qm_name,
+        trace_id=trace_id,
+        total=len(results),
+        passed=valid_count,
     )
     return {
         "trace_id": trace_id,
@@ -93,6 +107,16 @@ async def validate_system_rules(payload: SystemValidationRequest, request: Reque
         channel_count=len(payload.channels),
         errors=len(errors),
         warnings=len(warnings),
+    )
+    await _emit(
+        f"System validation: {len(errors)} errors, {len(warnings)} warnings across {len(payload.queue_managers)} QMs",
+        category="validation",
+        level="ERROR" if errors else ("WARNING" if warnings else "INFO"),
+        trace_id=trace_id,
+        qm_count=len(payload.queue_managers),
+        channel_count=len(payload.channels),
+        error_count=len(errors),
+        warning_count=len(warnings),
     )
 
     response = SystemValidationResponse(

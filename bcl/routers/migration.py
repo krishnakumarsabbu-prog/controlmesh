@@ -20,6 +20,7 @@ from bcl.state.control_state import (
     ExecutionState,
 )
 from bcl.observability.metrics import MIGRATION_PHASE_COUNT
+from bcl.observability.log_store import emit as _emit
 
 log = structlog.get_logger()
 router = APIRouter(tags=["migration"])
@@ -51,6 +52,13 @@ async def plan_migration(req: MigrationPlanRequest):
     set_execution_state(ExecutionState.PLANNING)
     append_log(
         f"Migration plan requested for {req.app_id}",
+        app_id=req.app_id,
+        source_qm=req.source_qm,
+        target_qm=req.target_qm,
+    )
+    await _emit(
+        f"Migration plan requested for {req.app_id}",
+        category="migration",
         app_id=req.app_id,
         source_qm=req.source_qm,
         target_qm=req.target_qm,
@@ -158,6 +166,15 @@ async def execute_migration(req: ExecuteMigrationRequest, request: Request):
     set_execution_state(ExecutionState.EXECUTING)
     append_log(
         f"Migration execute started for {req.app_id}",
+        app_id=req.app_id,
+        source_qm=req.source_qm,
+        target_qm=req.target_qm,
+        trace_id=trace_id,
+    )
+    await _emit(
+        f"Migration started: {req.app_id} ({req.source_qm} → {req.target_qm})",
+        category="migration",
+        level="INFO",
         app_id=req.app_id,
         source_qm=req.source_qm,
         target_qm=req.target_qm,
@@ -297,6 +314,15 @@ async def trigger_rollback(app_id: str, request: Request):
         app_id=app_id,
         trace_id=trace_id,
     )
+    await _emit(
+        f"Rollback triggered for {app_id}",
+        category="rollback",
+        level="WARNING",
+        app_id=app_id,
+        source_qm=record.source_qm,
+        target_qm=record.target_qm,
+        trace_id=trace_id,
+    )
 
     asyncio.create_task(_run_rollback_pipeline(app_id))
 
@@ -363,6 +389,17 @@ async def migration_stream():
 
 # ── Internal pipeline helpers ─────────────────────────────────────────────────
 
+async def _log_migration_step(app_id: str, phase: str, message: str, level: str = "INFO", **extra) -> None:
+    await _emit(
+        message,
+        category="migration",
+        level=level,
+        app_id=app_id,
+        phase=phase,
+        **extra,
+    )
+
+
 async def _run_agent_pipeline(
     app_id: str, source_qm: str, target_qm: str, snapshot_key: str
 ) -> None:
@@ -377,6 +414,7 @@ async def _run_agent_pipeline(
     try:
         await _sm.transition(app_id, MigrationState.PROVISIONING_TARGET)
         MIGRATION_PHASE_COUNT.labels(app_id, MigrationState.PROVISIONING_TARGET.value).inc()
+        await _log_migration_step(app_id, "PROVISIONING_TARGET", f"Provisioning target QM for {app_id}")
 
         result = await run_migration_step(app_id, source_qm, target_qm, snapshot_key)
 
@@ -385,6 +423,7 @@ async def _run_agent_pipeline(
             MIGRATION_PHASE_COUNT.labels(app_id, MigrationState.MIGRATED.value).inc()
             set_execution_state(ExecutionState.IDLE)
             append_log(f"Migration completed for {app_id}", app_id=app_id)
+            await _log_migration_step(app_id, "MIGRATED", f"Migration completed successfully for {app_id}")
             log.info("migration_completed", app_id=app_id)
         else:
             raise RuntimeError(result.get("error") or f"Agent returned status: {status}")
@@ -393,11 +432,14 @@ async def _run_agent_pipeline(
         log.error("migration_pipeline_error", app_id=app_id, error=str(exc))
         set_execution_state(ExecutionState.FAILED)
         append_log(f"Migration failed for {app_id}: {exc}", app_id=app_id, level="ERROR")
+        await _log_migration_step(app_id, "FAILED", f"Migration failed for {app_id}: {exc}", level="ERROR", error=str(exc))
         try:
             await _sm.transition(app_id, MigrationState.ROLLING_BACK, {"error": str(exc)})
             MIGRATION_PHASE_COUNT.labels(app_id, MigrationState.ROLLING_BACK.value).inc()
+            await _log_migration_step(app_id, "ROLLING_BACK", f"Auto-rollback initiated for {app_id}", level="WARNING", error=str(exc))
             await _sm.transition(app_id, MigrationState.ROLLED_BACK)
             MIGRATION_PHASE_COUNT.labels(app_id, MigrationState.ROLLED_BACK.value).inc()
+            await _log_migration_step(app_id, "ROLLED_BACK", f"Rollback complete for {app_id}", level="WARNING")
         except Exception as rb_exc:
             log.error("rollback_failed", app_id=app_id, error=str(rb_exc))
 

@@ -5,6 +5,7 @@ import MigrationPage from './pages/MigrationPage';
 import ValidationPage from './pages/ValidationPage';
 import AuditPage from './pages/AuditPage';
 import DemoPage from './pages/DemoPage';
+import LogsPage from './pages/LogsPage';
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
         <Route path="topology" element={<TopologyPage />} />
         <Route path="migration" element={<MigrationPage />} />
         <Route path="validation" element={<ValidationPage />} />
+        <Route path="logs" element={<LogsPage />} />
         <Route path="audit" element={<AuditPage />} />
         <Route path="demo" element={<DemoPage />} />
       </Route>

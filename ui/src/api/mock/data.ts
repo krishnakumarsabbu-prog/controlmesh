@@ -1,4 +1,4 @@
-import type { MigrationRecord, Fleet, AuditEvent, ValidationResult, TopologyChannel } from '../../types';
+import type { MigrationRecord, Fleet, AuditEvent, ValidationResult, TopologyChannel, LogEntry } from '../../types';
 
 const now = Date.now();
 const t = (offsetSec: number) => now - offsetSec * 1000;
@@ -170,6 +170,28 @@ export const MOCK_QUEUES: Record<string, string[]> = {
   'QM.APP5': [],
   'QM.APP6': [],
 };
+
+export const MOCK_LOGS: LogEntry[] = [
+  { timestamp: t(800), level: 'INFO',    category: 'migration',  message: 'Migration plan generated: 7 steps', app_id: 'APP1', source_qm: 'QM.SRC.A', target_qm: 'QM.APP1' },
+  { timestamp: t(750), level: 'INFO',    category: 'migration',  message: 'Migration started: APP1 (QM.SRC.A → QM.APP1)', app_id: 'APP1', source_qm: 'QM.SRC.A', target_qm: 'QM.APP1', trace_id: 'abc1-0001' },
+  { timestamp: t(730), level: 'INFO',    category: 'migration',  message: 'Provisioning target QM for APP1', app_id: 'APP1', phase: 'PROVISIONING_TARGET' },
+  { timestamp: t(680), level: 'INFO',    category: 'validation', message: 'Validation passed: 3/3 operations valid on QM.SRC.A', app_id: 'APP1', qm: 'QM.SRC.A', trace_id: 'abc1-0002' },
+  { timestamp: t(620), level: 'INFO',    category: 'migration',  message: 'Migration completed successfully for APP1', app_id: 'APP1', phase: 'MIGRATED' },
+  { timestamp: t(600), level: 'INFO',    category: 'migration',  message: 'Migration plan generated: 7 steps', app_id: 'APP2', source_qm: 'QM.SRC.A', target_qm: 'QM.APP2' },
+  { timestamp: t(560), level: 'INFO',    category: 'migration',  message: 'Migration started: APP2 (QM.SRC.A → QM.APP2)', app_id: 'APP2', source_qm: 'QM.SRC.A', target_qm: 'QM.APP2', trace_id: 'abc2-0001' },
+  { timestamp: t(540), level: 'INFO',    category: 'migration',  message: 'Provisioning target QM for APP2', app_id: 'APP2', phase: 'PROVISIONING_TARGET' },
+  { timestamp: t(500), level: 'WARNING', category: 'validation', message: 'Validation failed: 1/2 operations valid on QM.SRC.A', app_id: 'APP2', qm: 'QM.SRC.A', trace_id: 'abc2-0002', passed: 1, total: 2 },
+  { timestamp: t(480), level: 'ERROR',   category: 'migration',  message: 'Migration failed for APP2: Validation failed: latency exceeded threshold (850ms > 500ms)', app_id: 'APP2', phase: 'FAILED', error: 'latency exceeded threshold' },
+  { timestamp: t(460), level: 'WARNING', category: 'rollback',   message: 'Auto-rollback initiated for APP2', app_id: 'APP2', phase: 'ROLLING_BACK', error: 'Validation failed' },
+  { timestamp: t(420), level: 'WARNING', category: 'rollback',   message: 'Rollback complete for APP2', app_id: 'APP2', phase: 'ROLLED_BACK' },
+  { timestamp: t(380), level: 'INFO',    category: 'migration',  message: 'Migration started: APP3 (QM.SRC.B → QM.APP3)', app_id: 'APP3', source_qm: 'QM.SRC.B', target_qm: 'QM.APP3', trace_id: 'abc3-0001' },
+  { timestamp: t(360), level: 'INFO',    category: 'migration',  message: 'Provisioning target QM for APP3', app_id: 'APP3', phase: 'PROVISIONING_TARGET' },
+  { timestamp: t(310), level: 'INFO',    category: 'validation', message: 'Validation passed: 2/2 operations valid on QM.SRC.B', app_id: 'APP3', qm: 'QM.SRC.B', trace_id: 'abc3-0002' },
+  { timestamp: t(200), level: 'INFO',    category: 'migration',  message: 'Migration started: APP4 (QM.SRC.B → QM.APP4)', app_id: 'APP4', source_qm: 'QM.SRC.B', target_qm: 'QM.APP4', trace_id: 'abc4-0001' },
+  { timestamp: t(150), level: 'INFO',    category: 'migration',  message: 'Provisioning target QM for APP4', app_id: 'APP4', phase: 'PROVISIONING_TARGET' },
+  { timestamp: t(90),  level: 'INFO',    category: 'validation', message: 'System validation: 0 errors, 1 warning across 4 QMs', qm_count: 4, warning_count: 1, error_count: 0 },
+  { timestamp: t(45),  level: 'INFO',    category: 'system',     message: 'BCL gateway started', version: '2.0.0' },
+];
 
 // Channels that exist when a migration is in REWIRING or later state
 export const MOCK_CHANNELS: TopologyChannel[] = [

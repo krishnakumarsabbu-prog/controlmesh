@@ -126,6 +126,35 @@ class RedisStore:
             events = [e for e in events if e.get("qm_target") == filter_qm]
         return events
 
+    # ── Structured logs ───────────────────────────────────────────────────────
+
+    async def append_log(self, entry: dict) -> None:
+        """Append a structured log entry (timestamp + message + optional fields)."""
+        r = await _get_redis()
+        ts = entry.get("timestamp") or time.time()
+        entry["timestamp"] = ts
+        await r.zadd("bcl:logs", {json.dumps(entry, default=str): ts})
+        # Keep at most 2000 entries
+        await r.zremrangebyrank("bcl:logs", 0, -2001)
+
+    async def get_logs(
+        self,
+        limit: int = 200,
+        category: Optional[str] = None,
+        level: Optional[str] = None,
+        app_id: Optional[str] = None,
+    ) -> list:
+        r = await _get_redis()
+        raw = await r.zrevrange("bcl:logs", 0, limit * 3 - 1)
+        entries = [json.loads(e) for e in raw]
+        if category:
+            entries = [e for e in entries if e.get("category") == category]
+        if level:
+            entries = [e for e in entries if e.get("level") == level]
+        if app_id:
+            entries = [e for e in entries if e.get("app_id") == app_id]
+        return entries[:limit]
+
     # ── Health ────────────────────────────────────────────────────────────────
 
     async def health_check(self) -> bool:
