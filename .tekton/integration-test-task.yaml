@@ -1,0 +1,81 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: phase12-integration-test
+  namespace: mq-hackathon
+spec:
+  params:
+  - name: bcl-url
+    type: string
+    default: http://bcl-gateway-svc:8000
+    description: Base URL of the BCL gateway service
+  workspaces:
+  - name: source
+  steps:
+  - name: run-unit-tests
+    image: python:3.12-slim
+    workingDir: $(workspaces.source.path)
+    env:
+    - name: BCL_URL
+      value: $(params.bcl-url)
+    script: |
+      #!/bin/bash
+      set -e
+      echo "=== Installing dependencies ==="
+      pip install --quiet pytest pytest-asyncio pytest-cov httpx structlog
+
+      echo "=== Running unit tests with coverage ==="
+      pytest bcl/tests/ bcl/agents/tests/ -v --tb=short \
+        --cov=bcl --cov-report=term-missing \
+        --cov-fail-under=80 \
+        --junitxml=results/unit-tests.xml
+
+  - name: run-integration-tests
+    image: python:3.12-slim
+    workingDir: $(workspaces.source.path)
+    env:
+    - name: BCL_URL
+      value: $(params.bcl-url)
+    script: |
+      #!/bin/bash
+      set -e
+      echo "=== Installing dependencies ==="
+      pip install --quiet pytest pytest-asyncio httpx
+
+      echo "=== Running integration tests ==="
+      pytest tests/integration/ -v --tb=short \
+        --junitxml=results/integration.xml \
+        -p no:warnings
+
+  - name: archive-evidence
+    image: alpine/curl:latest
+    workingDir: $(workspaces.source.path)
+    env:
+    - name: BCL_URL
+      value: $(params.bcl-url)
+    script: |
+      #!/bin/sh
+      set -e
+      mkdir -p evidence
+
+      echo "=== Collecting migration status ==="
+      curl -sf "$BCL_URL/api/migration/status" \
+        -o evidence/migration-status.json || echo "warn: migration status unavailable"
+
+      echo "=== Collecting audit log ==="
+      curl -sf "$BCL_URL/api/audit?limit=500" \
+        -o evidence/audit-log.json || echo "warn: audit log unavailable"
+
+      echo "=== Collecting fleet state ==="
+      curl -sf "$BCL_URL/api/fleet" \
+        -o evidence/fleet-post-migration.json || echo "warn: fleet unavailable"
+
+      for app in APP1 APP2 APP3 APP4 APP5 APP6; do
+        curl -sf "$BCL_URL/api/migration/$app/history" \
+          -o "evidence/migration-${app}-history.json" || true
+        curl -sf "$BCL_URL/api/validate/$app/history" \
+          -o "evidence/validation-${app}.json" || true
+      done
+
+      echo "=== Evidence artifacts ==="
+      ls -lh evidence/

@@ -41,6 +41,7 @@ export default function AppMigrationCard({ app, record, onMigrate, onRollback, i
   return (
     <motion.div
       layout
+      data-testid={`migration-row-${app.id}`}
       className={`rounded-xl border bg-white overflow-hidden transition-all duration-300 ${borderClass}`}
     >
       {/* Header */}

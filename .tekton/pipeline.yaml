@@ -92,3 +92,14 @@ spec:
     workspaces:
     - name: source
       workspace: source
+
+  - name: phase12-e2e
+    taskRef:
+      name: phase12-integration-test
+    runAfter: [integration-test]
+    workspaces:
+    - name: source
+      workspace: source
+    params:
+    - name: bcl-url
+      value: http://bcl-gateway-svc:8000
