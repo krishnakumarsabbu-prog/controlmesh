@@ -55,6 +55,7 @@ export interface MigrationPlanStep {
   step: number;
   phase: string;
   description: string;
+  reasoning?: string;
   qm: string;
   status: 'pending' | 'running' | 'success' | 'failed';
 }
@@ -65,6 +66,7 @@ export interface MigrationPlanResponse {
   target_qm: string;
   plan: MigrationPlanStep[];
   total_steps: number;
+  plan_reasoning?: string;
 }
 
 // ── Migration state machine ───────────────────────────────────────────────────

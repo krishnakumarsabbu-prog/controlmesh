@@ -53,13 +53,48 @@ function getStateForStep(stepIdx: number): MigrationState {
 function buildDefaultPlan(appId: string, sourceQm: string, targetQm: string): MigrationPlanStep[] {
   const safeId = appId.replace('-', '').toUpperCase();
   return [
-    { step: 1, phase: 'BASELINE_VALIDATION', description: `Validate source flows are operational on ${sourceQm}`, qm: sourceQm, status: 'pending' },
-    { step: 2, phase: 'SNAPSHOT', description: `Capture pre-migration topology snapshot of ${sourceQm}`, qm: sourceQm, status: 'pending' },
-    { step: 3, phase: 'PROVISION_TARGET', description: `Create target QM ${targetQm} with DLQ Q.${safeId}.DLQ.LOCAL, application queues, channels, and listener`, qm: targetQm, status: 'pending' },
-    { step: 4, phase: 'REWIRE', description: `Install xmit queue and remote queue definitions on ${sourceQm} to transparently route traffic to ${targetQm}`, qm: sourceQm, status: 'pending' },
-    { step: 5, phase: 'POST_REWIRE_VALIDATION', description: 'Verify transparent routing: producers unchanged, messages reach target', qm: targetQm, status: 'pending' },
-    { step: 6, phase: 'CUTOVER', description: `Remove local queue from ${sourceQm} to complete cutover`, qm: sourceQm, status: 'pending' },
-    { step: 7, phase: 'FINAL_VALIDATION', description: 'Confirm final state and message delivery on target QM', qm: targetQm, status: 'pending' },
+    {
+      step: 1, phase: 'BASELINE_VALIDATION',
+      description: `Validate source flows are operational on ${sourceQm}`,
+      reasoning: `Establishing a healthy baseline before any changes ensures we have a known-good reference point to validate against post-migration.`,
+      qm: sourceQm, status: 'pending',
+    },
+    {
+      step: 2, phase: 'SNAPSHOT',
+      description: `Capture pre-migration topology snapshot of ${sourceQm}`,
+      reasoning: `Snapshotting the topology now enables automatic rollback to a verified state if any subsequent step fails.`,
+      qm: sourceQm, status: 'pending',
+    },
+    {
+      step: 3, phase: 'PROVISION_TARGET',
+      description: `Create target QM ${targetQm} with DLQ Q.${safeId}.DLQ.LOCAL, application queues, channels, and listener`,
+      reasoning: `Provisioning the target QM first means traffic can be redirected without downtime — the destination is ready before we rewire.`,
+      qm: targetQm, status: 'pending',
+    },
+    {
+      step: 4, phase: 'REWIRE',
+      description: `Install xmit queue and remote queue definitions on ${sourceQm} to transparently route traffic to ${targetQm}`,
+      reasoning: `Transparent rewiring via remote queue definitions keeps producers unchanged, eliminating application-side code changes and reducing dependency risk.`,
+      qm: sourceQm, status: 'pending',
+    },
+    {
+      step: 5, phase: 'POST_REWIRE_VALIDATION',
+      description: 'Verify transparent routing: producers unchanged, messages reach target',
+      reasoning: `Validating immediately after rewire catches latency regressions early, while the snapshot is still fresh and rollback cost is low.`,
+      qm: targetQm, status: 'pending',
+    },
+    {
+      step: 6, phase: 'CUTOVER',
+      description: `Remove local queue from ${sourceQm} to complete cutover`,
+      reasoning: `Removing the source local queue finalises ownership on ${targetQm} and prevents split-brain message delivery.`,
+      qm: sourceQm, status: 'pending',
+    },
+    {
+      step: 7, phase: 'FINAL_VALIDATION',
+      description: 'Confirm final state and message delivery on target QM',
+      reasoning: `A final end-to-end check confirms the migration is stable and provides audit evidence that ${appId} is fully operational on ${targetQm}.`,
+      qm: targetQm, status: 'pending',
+    },
   ];
 }
 
@@ -380,6 +415,7 @@ export const mockApi = {
       target_qm: targetQm,
       total_steps: 7,
       plan,
+      plan_reasoning: `Migrating ${appId} first reduces dependency risk by isolating its queues on a dedicated QM (${targetQm}), freeing ${sourceQm} capacity for remaining applications and limiting blast radius if validation fails.`,
     };
   },
 

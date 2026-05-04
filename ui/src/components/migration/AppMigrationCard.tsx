@@ -28,6 +28,7 @@ type ExpandedView = 'stepper' | 'plan' | 'rollback' | null;
 export default function AppMigrationCard({ app, record, onMigrate, onRollback, isLoading }: Props) {
   const [expandedView, setExpandedView] = useState<ExpandedView>(null);
   const [planSteps, setPlanSteps] = useState<MigrationPlanStep[] | null>(null);
+  const [planReasoning, setPlanReasoning] = useState<string | undefined>(undefined);
   const [planLoading, setPlanLoading] = useState(false);
   const [rollbackStepList, setRollbackStepList] = useState<RollbackStep[] | null>(null);
   const [snapshot, setSnapshot] = useState<TopologySnapshot | null>(null);
@@ -118,6 +119,7 @@ export default function AppMigrationCard({ app, record, onMigrate, onRollback, i
       try {
         const result = await planMigration(app.id, app.source, app.target);
         setPlanSteps(result.plan);
+        setPlanReasoning(result.plan_reasoning);
       } finally {
         setPlanLoading(false);
       }
@@ -254,7 +256,7 @@ export default function AppMigrationCard({ app, record, onMigrate, onRollback, i
                   Generating plan…
                 </div>
               ) : planSteps ? (
-                <PlanTimeline steps={planSteps} />
+                <PlanTimeline steps={planSteps} planReasoning={planReasoning} />
               ) : null
             )}
             {expandedView === 'rollback' && rollbackStepList && (

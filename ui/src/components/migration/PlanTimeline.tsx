@@ -1,5 +1,6 @@
-import { Check, Loader as Loader2, X, Clock } from 'lucide-react';
+import { Check, Loader as Loader2, X, Clock, Lightbulb, ChevronDown, ChevronUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useState } from 'react';
 import type { MigrationPlanStep } from '../../types';
 
 const PHASE_LABELS: Record<string, string> = {
@@ -14,11 +15,40 @@ const PHASE_LABELS: Record<string, string> = {
 
 interface Props {
   steps: MigrationPlanStep[];
+  planReasoning?: string;
 }
 
-export default function PlanTimeline({ steps }: Props) {
+function StepReasoning({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-1">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-600 transition-colors"
+      >
+        <Lightbulb className="w-3 h-3" />
+        Why this step?
+        {open ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.p
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden text-[11px] text-slate-500 italic mt-1 pl-1 border-l-2 border-slate-200 leading-relaxed"
+          >
+            {text}
+          </motion.p>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+export default function PlanTimeline({ steps, planReasoning }: Props) {
   const completedCount = steps.filter((s) => s.status === 'success').length;
-  const activeStep = steps.find((s) => s.status === 'running');
   const progress = steps.length > 0 ? (completedCount / steps.length) * 100 : 0;
   const hasActivity = steps.some((s) => s.status !== 'pending');
 
@@ -48,6 +78,19 @@ export default function PlanTimeline({ steps }: Props) {
           </div>
         )}
       </div>
+
+      {/* Plan-level reasoning banner */}
+      {planReasoning && (
+        <motion.div
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="flex gap-2 mb-4 px-3 py-2.5 bg-blue-50 border border-blue-100 rounded-lg"
+        >
+          <Lightbulb className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />
+          <p className="text-xs text-blue-700 leading-relaxed">{planReasoning}</p>
+        </motion.div>
+      )}
 
       {/* Step list */}
       <ol className="relative">
@@ -139,6 +182,9 @@ export default function PlanTimeline({ steps }: Props) {
                 <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
                   {step.description}
                 </p>
+                {step.reasoning && (
+                  <StepReasoning text={step.reasoning} />
+                )}
               </motion.div>
             </motion.li>
           );
