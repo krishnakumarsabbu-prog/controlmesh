@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, RotateCcw, ChevronDown, ChevronUp, Clock, ListChecks, Loader as Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import type { MigrationRecord, MigrationPlanStep } from '../../types';
 import { planMigration } from '../../api/migration';
+import { mockApi } from '../../api/mock/service';
 import StateBadge from './StateBadge';
 import MigrationStepper from './MigrationStepper';
 import PlanTimeline from './PlanTimeline';
@@ -26,10 +27,34 @@ export default function AppMigrationCard({ app, record, onMigrate, onRollback, i
   const [expandedView, setExpandedView] = useState<ExpandedView>(null);
   const [planSteps, setPlanSteps] = useState<MigrationPlanStep[] | null>(null);
   const [planLoading, setPlanLoading] = useState(false);
+  const prevStateRef = useRef<string | undefined>(undefined);
   const state = record?.state ?? 'IDLE';
   const canMigrate = state === 'IDLE' || state === 'ROLLED_BACK';
   const canRollback = ['SNAPSHOTTED', 'PROVISIONING_TARGET', 'REWIRING', 'VALIDATING'].includes(state);
   const isActive = ACTIVE_STATES.includes(state);
+
+  // Auto-open plan view when migration starts, auto-close when idle/done
+  useEffect(() => {
+    const prev = prevStateRef.current;
+    prevStateRef.current = state;
+
+    if (prev !== state) {
+      if (ACTIVE_STATES.includes(state) && !ACTIVE_STATES.includes(prev ?? '')) {
+        // Migration just started — open plan view
+        setExpandedView('plan');
+      }
+    }
+  }, [state]);
+
+  // Subscribe to live plan step updates from mock service
+  useEffect(() => {
+    if (!isActive && state !== 'MIGRATED') return;
+
+    const unsubscribe = mockApi.subscribePlanSteps(app.id, (steps) => {
+      setPlanSteps([...steps]);
+    });
+    return unsubscribe;
+  }, [app.id, isActive, state]);
 
   const borderClass =
     isActive            ? 'border-amber-200 shadow-amber-50 shadow-md' :
@@ -55,6 +80,12 @@ export default function AppMigrationCard({ app, record, onMigrate, onRollback, i
     }
     setExpandedView('plan');
     if (!planSteps) {
+      // Check if mock has live steps already
+      const liveSteps = mockApi.getPlanSteps(app.id);
+      if (liveSteps) {
+        setPlanSteps(liveSteps);
+        return;
+      }
       setPlanLoading(true);
       try {
         const result = await planMigration(app.id, app.source, app.target);

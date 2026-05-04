@@ -56,7 +56,7 @@ export interface MigrationPlanStep {
   phase: string;
   description: string;
   qm: string;
-  status: 'pending';
+  status: 'pending' | 'running' | 'success' | 'failed';
 }
 
 export interface MigrationPlanResponse {

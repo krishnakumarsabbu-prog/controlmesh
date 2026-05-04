@@ -1,4 +1,4 @@
-import type { MigrationRecord, MigrationState, ValidationResult, MigrationPlanResponse, TopologyChannel } from '../../types';
+import type { MigrationRecord, MigrationState, MigrationPlanStep, ValidationResult, MigrationPlanResponse, TopologyChannel } from '../../types';
 import {
   MOCK_FLEET,
   MOCK_MIGRATIONS,
@@ -16,6 +16,9 @@ const migrations: Record<string, MigrationRecord> = Object.fromEntries(
   MOCK_MIGRATIONS.map((m) => [m.app_id, { ...m }])
 );
 
+// Per-app plan step state for real-time step execution
+const migrationPlanSteps: Record<string, MigrationPlanStep[]> = {};
+
 const MIGRATION_STATES: MigrationState[] = [
   'SNAPSHOTTED',
   'PROVISIONING_TARGET',
@@ -24,37 +27,86 @@ const MIGRATION_STATES: MigrationState[] = [
   'MIGRATED',
 ];
 
-function advanceMigration(appId: string) {
-  const m = migrations[appId];
-  if (!m) return;
-  const idx = MIGRATION_STATES.indexOf(m.state as MigrationState);
-  if (idx < 0) {
-    m.state = 'SNAPSHOTTED';
-  } else if (idx < MIGRATION_STATES.length - 1) {
-    const nextState = MIGRATION_STATES[idx + 1];
-    m.state = nextState;
-    if (nextState === 'MIGRATED') {
-      m.completed_at = new Date().toISOString();
-      m.validation_results = [
-        { phase: 'BASELINE', passed: true, latency_ms: 45 + Math.floor(Math.random() * 20), timestamp: Date.now() - 20000 },
-        { phase: 'POST_REWIRE', passed: true, latency_ms: 48 + Math.floor(Math.random() * 20), timestamp: Date.now() - 10000 },
-        { phase: 'FINAL', passed: true, latency_ms: 43 + Math.floor(Math.random() * 20), timestamp: Date.now() },
-      ];
-    }
+// Step index ranges mapped to migration states (7 plan steps across 4 active states + migrated)
+const STEP_STATE_MAP: [number, number, MigrationState][] = [
+  [0, 1, 'SNAPSHOTTED'],           // steps 1-2
+  [2, 2, 'PROVISIONING_TARGET'],   // step 3
+  [3, 3, 'REWIRING'],              // step 4
+  [4, 5, 'VALIDATING'],            // steps 5-6
+  [6, 6, 'MIGRATED'],              // step 7
+];
+
+function getStateForStep(stepIdx: number): MigrationState {
+  for (const [start, end, state] of STEP_STATE_MAP) {
+    if (stepIdx >= start && stepIdx <= end) return state;
   }
-  // Notify SSE listeners
-  sseListeners.forEach((cb) => cb(m));
+  return 'MIGRATED';
+}
+
+function buildDefaultPlan(appId: string, sourceQm: string, targetQm: string): MigrationPlanStep[] {
+  const safeId = appId.replace('-', '').toUpperCase();
+  return [
+    { step: 1, phase: 'BASELINE_VALIDATION', description: `Validate source flows are operational on ${sourceQm}`, qm: sourceQm, status: 'pending' },
+    { step: 2, phase: 'SNAPSHOT', description: `Capture pre-migration topology snapshot of ${sourceQm}`, qm: sourceQm, status: 'pending' },
+    { step: 3, phase: 'PROVISION_TARGET', description: `Create target QM ${targetQm} with DLQ Q.${safeId}.DLQ.LOCAL, application queues, channels, and listener`, qm: targetQm, status: 'pending' },
+    { step: 4, phase: 'REWIRE', description: `Install xmit queue and remote queue definitions on ${sourceQm} to transparently route traffic to ${targetQm}`, qm: sourceQm, status: 'pending' },
+    { step: 5, phase: 'POST_REWIRE_VALIDATION', description: 'Verify transparent routing: producers unchanged, messages reach target', qm: targetQm, status: 'pending' },
+    { step: 6, phase: 'CUTOVER', description: `Remove local queue from ${sourceQm} to complete cutover`, qm: sourceQm, status: 'pending' },
+    { step: 7, phase: 'FINAL_VALIDATION', description: 'Confirm final state and message delivery on target QM', qm: targetQm, status: 'pending' },
+  ];
 }
 
 // SSE simulation
 type SSECallback = (record: MigrationRecord) => void;
+type StepSSECallback = (appId: string, steps: MigrationPlanStep[]) => void;
 const sseListeners = new Set<SSECallback>();
+const stepListeners = new Set<StepSSECallback>();
 
-function simulateMigrationProgress(appId: string) {
-  const intervals = [800, 1600, 2400, 3200];
-  intervals.forEach((ms) => {
-    setTimeout(() => advanceMigration(appId), ms);
-  });
+function notifyStepListeners(appId: string) {
+  const steps = migrationPlanSteps[appId];
+  if (steps) stepListeners.forEach((cb) => cb(appId, steps));
+}
+
+async function simulateMigrationProgress(appId: string) {
+  const steps = migrationPlanSteps[appId];
+  if (!steps) return;
+
+  for (let i = 0; i < steps.length; i++) {
+    // Mark current step as running
+    steps[i] = { ...steps[i], status: 'running' };
+    notifyStepListeners(appId);
+
+    // Advance migration state machine at appropriate step boundaries
+    const newMigrationState = getStateForStep(i);
+    const m = migrations[appId];
+    if (m && m.state !== newMigrationState) {
+      m.state = newMigrationState;
+      if (newMigrationState === 'MIGRATED') {
+        m.completed_at = new Date().toISOString();
+        m.validation_results = [
+          { phase: 'BASELINE', passed: true, latency_ms: 45 + Math.floor(Math.random() * 20), timestamp: Date.now() - 20000 },
+          { phase: 'POST_REWIRE', passed: true, latency_ms: 48 + Math.floor(Math.random() * 20), timestamp: Date.now() - 10000 },
+          { phase: 'FINAL', passed: true, latency_ms: 43 + Math.floor(Math.random() * 20), timestamp: Date.now() },
+        ];
+      }
+      sseListeners.forEach((cb) => cb(m));
+    }
+
+    // Wait 1 second per step
+    await new Promise((r) => setTimeout(r, 1000));
+
+    // Mark current step as success
+    steps[i] = { ...steps[i], status: 'success' };
+    notifyStepListeners(appId);
+  }
+
+  // Ensure final state is MIGRATED
+  const m = migrations[appId];
+  if (m && m.state !== 'MIGRATED') {
+    m.state = 'MIGRATED';
+    m.completed_at = new Date().toISOString();
+    sseListeners.forEach((cb) => cb(m));
+  }
 }
 
 // Public API mock implementations
@@ -93,6 +145,9 @@ export const mockApi = {
       target_qm: targetQm,
       started_at: new Date().toISOString(),
     };
+    // Reset plan steps to pending
+    migrationPlanSteps[appId] = buildDefaultPlan(appId, sourceQm, targetQm);
+    notifyStepListeners(appId);
     sseListeners.forEach((cb) => cb(migrations[appId]));
     simulateMigrationProgress(appId);
   },
@@ -157,21 +212,15 @@ export const mockApi = {
 
   async planMigration(appId: string, sourceQm: string, targetQm: string): Promise<MigrationPlanResponse> {
     await delay(600);
-    const safeId = appId.replace('-', '').toUpperCase();
+    // Return live steps if we have them (from an active/completed execution)
+    const liveSteps = migrationPlanSteps[appId];
+    const plan = liveSteps ?? buildDefaultPlan(appId, sourceQm, targetQm);
     return {
       app_id: appId,
       source_qm: sourceQm,
       target_qm: targetQm,
       total_steps: 7,
-      plan: [
-        { step: 1, phase: 'BASELINE_VALIDATION', description: `Validate source flows are operational on ${sourceQm}`, qm: sourceQm, status: 'pending' },
-        { step: 2, phase: 'SNAPSHOT', description: `Capture pre-migration topology snapshot of ${sourceQm}`, qm: sourceQm, status: 'pending' },
-        { step: 3, phase: 'PROVISION_TARGET', description: `Create target QM ${targetQm} with DLQ Q.${safeId}.DLQ.LOCAL, application queues, channels, and listener`, qm: targetQm, status: 'pending' },
-        { step: 4, phase: 'REWIRE', description: `Install xmit queue and remote queue definitions on ${sourceQm} to transparently route traffic to ${targetQm}`, qm: sourceQm, status: 'pending' },
-        { step: 5, phase: 'POST_REWIRE_VALIDATION', description: 'Verify transparent routing: producers unchanged, messages reach target', qm: targetQm, status: 'pending' },
-        { step: 6, phase: 'CUTOVER', description: `Remove local queue from ${sourceQm} to complete cutover`, qm: sourceQm, status: 'pending' },
-        { step: 7, phase: 'FINAL_VALIDATION', description: 'Confirm final state and message delivery on target QM', qm: targetQm, status: 'pending' },
-      ],
+      plan,
     };
   },
 
@@ -183,6 +232,22 @@ export const mockApi = {
       if (m.state !== 'IDLE') callback(m);
     });
     return () => sseListeners.delete(callback);
+  },
+
+  // Subscribe to real-time plan step updates for a specific app
+  subscribePlanSteps(appId: string, callback: (steps: MigrationPlanStep[]) => void): () => void {
+    const wrapper: StepSSECallback = (id, steps) => {
+      if (id === appId) callback(steps);
+    };
+    stepListeners.add(wrapper);
+    // Emit current steps immediately if available
+    const current = migrationPlanSteps[appId];
+    if (current) callback(current);
+    return () => stepListeners.delete(wrapper);
+  },
+
+  getPlanSteps(appId: string): MigrationPlanStep[] | null {
+    return migrationPlanSteps[appId] ?? null;
   },
 
   // Returns queues with type info, reflecting current migration state for a QM
