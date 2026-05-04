@@ -60,7 +60,7 @@ async def execute_migration(req: ExecuteMigrationRequest, request: Request):
     await _store.save_migration_record(record)
 
     asyncio.create_task(
-        _run_migration_pipeline(req.app_id, req.source_qm, req.target_qm, snapshot_key)
+        _run_agent_pipeline(req.app_id, req.source_qm, req.target_qm, snapshot_key)
     )
 
     MIGRATION_PHASE_COUNT.labels(req.app_id, MigrationState.SNAPSHOTTED.value).inc()
@@ -169,51 +169,35 @@ async def migration_stream():
 
 # ── Internal pipeline helpers ─────────────────────────────────────────────────
 
-async def _run_migration_pipeline(
+async def _run_agent_pipeline(
     app_id: str, source_qm: str, target_qm: str, snapshot_key: str
 ) -> None:
     """
-    Fire-and-forget migration pipeline. Drives the state machine through
-    PROVISIONING_TARGET -> REWIRING -> VALIDATING -> MIGRATED.
+    Fire-and-forget migration pipeline driven by the ADK orchestrator agent.
+    The orchestrator manages state transitions for PROVISIONING_TARGET through MIGRATED
+    internally; this function handles the outer SNAPSHOTTED → agent → terminal transition.
     On any failure, transitions to ROLLING_BACK then ROLLED_BACK.
     """
+    from bcl.agents.orchestrator import run_migration_step
+
     try:
         await _sm.transition(app_id, MigrationState.PROVISIONING_TARGET)
         MIGRATION_PHASE_COUNT.labels(app_id, MigrationState.PROVISIONING_TARGET.value).inc()
 
-        await _provision_target(app_id, target_qm)
+        result = await run_migration_step(app_id, source_qm, target_qm, snapshot_key)
 
-        await _sm.transition(app_id, MigrationState.REWIRING)
-        MIGRATION_PHASE_COUNT.labels(app_id, MigrationState.REWIRING.value).inc()
-
-        await _rewire(app_id, source_qm, target_qm)
-
-        await _sm.transition(app_id, MigrationState.VALIDATING)
-        MIGRATION_PHASE_COUNT.labels(app_id, MigrationState.VALIDATING.value).inc()
-
-        validation_result = await _validate_flow(source_qm, target_qm)
-
-        if validation_result["passed"]:
-            await _sm.transition(
-                app_id,
-                MigrationState.MIGRATED,
-                {"validation_result": validation_result},
-            )
+        status = result.get("status", "FAILED")
+        if status == "MIGRATED":
             MIGRATION_PHASE_COUNT.labels(app_id, MigrationState.MIGRATED.value).inc()
             log.info("migration_completed", app_id=app_id)
         else:
-            raise RuntimeError(
-                f"Validation failed: {validation_result.get('reason', 'unknown')}"
-            )
+            raise RuntimeError(result.get("error") or f"Agent returned status: {status}")
 
     except Exception as exc:
         log.error("migration_pipeline_error", app_id=app_id, error=str(exc))
         try:
-            await _sm.transition(
-                app_id, MigrationState.ROLLING_BACK, {"error": str(exc)}
-            )
+            await _sm.transition(app_id, MigrationState.ROLLING_BACK, {"error": str(exc)})
             MIGRATION_PHASE_COUNT.labels(app_id, MigrationState.ROLLING_BACK.value).inc()
-            await _rollback(app_id, snapshot_key)
             await _sm.transition(app_id, MigrationState.ROLLED_BACK)
             MIGRATION_PHASE_COUNT.labels(app_id, MigrationState.ROLLED_BACK.value).inc()
         except Exception as rb_exc:
@@ -237,33 +221,3 @@ async def _capture_topology_snapshot(qm_name: str) -> dict:
         "queues": queues,
         "captured_at": _dt.datetime.utcnow().isoformat(),
     }
-
-
-async def _provision_target(app_id: str, target_qm: str) -> None:
-    log.info("provisioning_target", app_id=app_id, target_qm=target_qm)
-
-
-async def _rewire(app_id: str, source_qm: str, target_qm: str) -> None:
-    log.info("rewiring", app_id=app_id, source_qm=source_qm, target_qm=target_qm)
-
-
-async def _validate_flow(source_qm: str, target_qm: str) -> dict:
-    from bcl.mq.registry import get_registry
-
-    registry = get_registry()
-    target_entry = registry.get(target_qm)
-    if target_entry is None:
-        return {"passed": False, "reason": f"Target QM {target_qm} not in registry"}
-    try:
-        await target_entry.client.get_qmgr_status()
-        return {"passed": True, "source_qm": source_qm, "target_qm": target_qm}
-    except Exception as exc:
-        return {"passed": False, "reason": str(exc)}
-
-
-async def _rollback(app_id: str, snapshot_key: str) -> None:
-    snapshot = await _store.load_latest_snapshot(app_id)
-    if snapshot:
-        log.info("rollback_restoring", app_id=app_id, snapshot_key=snapshot_key)
-    else:
-        log.warning("rollback_no_snapshot", app_id=app_id)
