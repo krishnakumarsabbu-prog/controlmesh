@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Network, Layers, ShieldCheck, ScrollText, Presentation, Terminal, Zap, Sparkles } from 'lucide-react';
+import { LayoutDashboard, Network, Layers, ShieldCheck, ScrollText, Presentation, Terminal, Zap, Sparkles, CirclePlay as PlayCircle } from 'lucide-react';
 import TopBar from './TopBar';
 import FleetStatusMini from './FleetStatusMini';
 
@@ -7,7 +7,8 @@ const NAV = [
   { to: '/dashboard',        icon: LayoutDashboard, label: 'Dashboard'        },
   { to: '/topology',         icon: Network,         label: 'Topology'         },
   { to: '/migration',        icon: Layers,          label: 'Migration'        },
-  { to: '/migration-plan',   icon: Sparkles,        label: 'Migration Plan'   },
+  { to: '/migration-plan',       icon: Sparkles,        label: 'Migration Plan'      },
+  { to: '/migration-execution', icon: PlayCircle,      label: 'Execution'           },
   { to: '/validation',       icon: ShieldCheck,     label: 'Validation'       },
   { to: '/logs',             icon: Terminal,        label: 'Logs'             },
   { to: '/audit',            icon: ScrollText,      label: 'Audit Log'        },
