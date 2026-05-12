@@ -77,7 +77,7 @@ export default function SentinelDemoPanel() {
           ))}
 
           <button
-            onClick={() => heal()}
+            onClick={() => heal(undefined)}
             disabled={isHealing}
             className="btn-success w-full py-2 rounded-xl text-xs font-bold"
           >

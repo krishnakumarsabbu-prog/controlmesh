@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import make_asgi_app
 
-from bcl.routers import fleet, queues, channels, migration, validation, audit, topology, logs, sentinel
+from bcl.routers import fleet, queues, channels, migration, validation, audit, topology, logs, sentinel, topology_upload
 from bcl.observability.logging import configure_logging
 from bcl.observability.metrics import REQUEST_LATENCY, REQUEST_COUNT
 from bcl.mq.registry import bootstrap_registry
@@ -99,6 +99,7 @@ async def observability_middleware(request: Request, call_next):
 
 
 app.include_router(topology.router, prefix="/api")
+app.include_router(topology_upload.router, prefix="/api")
 app.include_router(sentinel.router, prefix="/api")
 app.include_router(fleet.router, prefix="/api")
 app.include_router(queues.router, prefix="/api")

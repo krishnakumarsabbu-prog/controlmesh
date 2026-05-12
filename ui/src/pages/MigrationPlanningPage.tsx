@@ -214,7 +214,7 @@ function AgentBubble({ messages, open, setOpen, unread }: {
       </AnimatePresence>
 
       <motion.button
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen(!open)}
         whileHover={{ scale: 1.06 }}
         whileTap={{ scale: 0.94 }}
         className="relative w-12 h-12 rounded-2xl flex items-center justify-center"

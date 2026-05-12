@@ -267,7 +267,7 @@ export default function MigrationPage() {
       </div>
 
       {/* Floating assistant */}
-      <FloatingAssistant messages={assistantMessages} />
+      <FloatingAssistant messages={assistantMessages} onUserMessage={() => {}} />
     </div>
   );
 }

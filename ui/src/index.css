@@ -367,3 +367,26 @@
 .border-status-warning { border-color: color-mix(in srgb, var(--accent-warning) 35%, transparent); }
 .border-status-danger  { border-color: color-mix(in srgb, var(--accent-danger)  35%, transparent); }
 .border-status-primary { border-color: color-mix(in srgb, var(--accent-primary) 35%, transparent); }
+
+/* ── Provision pipeline animations ─────────────────────── */
+@keyframes pulse-glow-blue {
+  0%, 100% { box-shadow: 0 0 6px 1px rgba(59,130,246,0.3); }
+  50% { box-shadow: 0 0 18px 4px rgba(59,130,246,0.6); }
+}
+
+@keyframes pulse-glow-violet {
+  0%, 100% { box-shadow: 0 0 6px 1px rgba(139,92,246,0.3); }
+  50% { box-shadow: 0 0 18px 4px rgba(139,92,246,0.6); }
+}
+
+@keyframes pulse-glow-amber {
+  0%, 100% { box-shadow: 0 0 6px 1px rgba(245,158,11,0.3); }
+  50% { box-shadow: 0 0 18px 4px rgba(245,158,11,0.6); }
+}
+
+.animate-pulse-glow-blue { animation: pulse-glow-blue 1.5s ease-in-out infinite; }
+.animate-pulse-glow-violet { animation: pulse-glow-violet 1.5s ease-in-out infinite; }
+.animate-pulse-glow-amber { animation: pulse-glow-amber 1.5s ease-in-out infinite; }
+
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
