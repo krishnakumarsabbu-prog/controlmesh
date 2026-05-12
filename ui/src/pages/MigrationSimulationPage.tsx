@@ -17,10 +17,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Play, RotateCcw, CheckCircle, XCircle, AlertTriangle,
-  ArrowRight, Server, MonitorPlay, GitBranch, Database, Zap,
-} from 'lucide-react';
+import { Play, RotateCcw, CircleCheck as CheckCircle, Circle as XCircle, TriangleAlert as AlertTriangle, ArrowRight, Server, MonitorPlay, GitBranch, Database, Zap } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import type { TopologyNodeData, TopologyEdgeData } from '../api/topologyUpload';
 
