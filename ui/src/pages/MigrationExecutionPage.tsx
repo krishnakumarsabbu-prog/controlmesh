@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Server, Layers, GitBranch, ArrowRightLeft, Route, ShieldCheck, CircleCheck as CheckCircle2, Loader as Loader2, Circle as XCircle, Clock, Terminal, Bot, X, ChevronDown, Play, RotateCcw, Zap, CircleDot } from 'lucide-react';
-import DragMigrationBoard from '../components/migration/DragMigrationBoard';
+import LiveTopologyMigrationBoard from '../components/migration/LiveTopologyMigrationBoard';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -906,8 +906,8 @@ export default function MigrationExecutionPage() {
         </div>
       </div>
 
-      {/* Topology migration board */}
-      <DragMigrationBoard />
+      {/* Live Topology Migration — React Flow source & target graphs */}
+      <LiveTopologyMigrationBoard />
 
       {/* Main body: timeline + log panel */}
       <div className="flex gap-5 flex-1 min-h-0 overflow-hidden">
