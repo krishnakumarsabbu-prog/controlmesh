@@ -1,9 +1,10 @@
 import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Network, ArrowRight, DatabaseZap, CircleCheck as CheckCircle,
   CircleAlert as AlertCircle, BrainCircuit, X, ShieldAlert,
-  MessageSquareWarning, Upload, ChevronDown, ChevronUp,
+  MessageSquareWarning, Upload, ChevronDown, ChevronUp, ArrowRightLeft,
 } from 'lucide-react';
 import TopologyCanvas from '../components/topology/TopologyCanvas';
 import UploadTopology from '../components/topology/UploadTopology';
@@ -22,6 +23,7 @@ import type { QueueEntry } from '../components/topology/QMNode';
 import type { TopologyNodeData } from '../api/topologyUpload';
 import type { ProvisionedNode } from '../hooks/useProvisionEvents';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAppStore } from '../store/appStore';
 
 type ViewMode = 'split' | 'source' | 'target';
 type ProvisionState = 'idle' | 'loading' | 'success' | 'error';
@@ -46,20 +48,40 @@ const MOCK_ANALYSIS: AnalysisResult = {
 };
 
 export default function TopologyPage() {
+  const navigate = useNavigate();
   const [view, setView] = useState<ViewMode>('split');
   const [provisionState, setProvisionState] = useState<ProvisionState>('idle');
   const [provisionMessage, setProvisionMessage] = useState<string>('');
   const [analysisState, setAnalysisState] = useState<'idle' | 'loading' | 'done'>('idle');
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [agentMessage, setAgentMessage] = useState<string>('');
-  const [showUpload, setShowUpload] = useState(false);
+  const [showSourceUpload, setShowSourceUpload] = useState(false);
+  const [showTargetUpload, setShowTargetUpload] = useState(false);
   const [selectedNode, setSelectedNode] = useState<TopologyNodeData | ProvisionedNode | null>(null);
   const [provisionBoardExpanded, setProvisionBoardExpanded] = useState(true);
 
-  // Upload hooks
-  const { upload, uploading, uploadResult, uploadError, reset: resetUpload } = useTopologyUpload();
+  // Global topology store
+  const { sourceTopology, targetTopology, setSourceTopology, setTargetTopology } = useAppStore();
+
+  // Source upload hooks
+  const { upload: uploadSource, uploading: uploadingSource, uploadResult: sourceUploadResult, uploadError: sourceUploadError, reset: resetSource } = useTopologyUpload();
+  // Target upload hooks
+  const { upload: uploadTarget, uploading: uploadingTarget, uploadResult: targetUploadResult, uploadError: targetUploadError, reset: resetTarget } = useTopologyUpload();
+
   const { start: startProvisioning, starting, sessionId } = useProvisionStart();
   const provEvents = useProvisionEvents(sessionId);
+
+  const handleUploadSource = useCallback(async (file: File) => {
+    const result = await uploadSource(file);
+    setSourceTopology(result.graph);
+    return result;
+  }, [uploadSource, setSourceTopology]);
+
+  const handleUploadTarget = useCallback(async (file: File) => {
+    const result = await uploadTarget(file);
+    setTargetTopology(result.graph);
+    return result;
+  }, [uploadTarget, setTargetTopology]);
 
   function handleAnalyze() {
     setAnalysisState('loading');
@@ -77,7 +99,7 @@ export default function TopologyPage() {
 
   const sourceQMs = fleet?.queue_managers.filter((q) => q.role === 'source') ?? [];
 
-  const { data: targetTopology, isLoading: targetLoading } = useQuery({
+  const { data: remoteTargetTopology, isLoading: targetLoading } = useQuery({
     queryKey: ['topology-target'],
     queryFn: fetchTargetTopology,
     staleTime: 60_000,
@@ -96,7 +118,7 @@ export default function TopologyPage() {
     refetchInterval: 4000,
   });
 
-  const targetQMs: QueueManagerFleet[] = (targetTopology?.queue_managers ?? []).map((qm) => ({
+  const targetQMs: QueueManagerFleet[] = (remoteTargetTopology?.queue_managers ?? []).map((qm) => ({
     name: qm.name,
     internal_name: qm.name.toLowerCase(),
     svc_url: '',
@@ -147,7 +169,7 @@ export default function TopologyPage() {
   }
 
   async function handleProvisionUploaded() {
-    if (!uploadResult) return;
+    if (!sourceUploadResult) return;
     await startProvisioning();
     setProvisionBoardExpanded(true);
   }
@@ -160,18 +182,21 @@ export default function TopologyPage() {
     await rollbackProvisioning(nodeId);
   }, []);
 
+  const canMigrate = !!sourceTopology && !!targetTopology;
+  const hasSourceGraph = !!sourceTopology || !!sourceUploadResult?.graph;
+  const hasTargetGraph = !!targetTopology || !!targetUploadResult?.graph;
+  const hasUploadedGraph = hasSourceGraph;
+  const hasProvisioningStarted = !!sessionId;
+
   const isEmpty = sourceQMs.length > 0 &&
     sourceQueueDetails &&
     Object.values(sourceQueueDetails).every(queues => queues.length === 0);
 
   const rewiringCount = activeChannels.filter((ch) => ch.isRewiring).length;
   const totalChannels = activeChannels.length;
-  const hasUploadedGraph = !!uploadResult?.graph;
-  const hasProvisioningStarted = !!sessionId;
 
-  // Find source row for selected node
-  const selectedSourceRow = selectedNode && uploadResult?.graph?.rows
-    ? uploadResult.graph.rows.find((row) => {
+  const selectedSourceRow = selectedNode && sourceUploadResult?.graph?.rows
+    ? sourceUploadResult.graph.rows.find((row) => {
         const n = selectedNode as TopologyNodeData;
         return row.producer_app_id === n.app_id ||
           row.consumer_app_id === n.app_id ||
@@ -179,6 +204,9 @@ export default function TopologyPage() {
           row.channel_name === (n as TopologyNodeData).channel_name;
       })
     : undefined;
+
+  const activeSourceGraph = sourceTopology || sourceUploadResult?.graph;
+  const activeTargetGraph = targetTopology || targetUploadResult?.graph;
 
   return (
     <div className="flex flex-col gap-4 h-[calc(100vh-7rem)] relative">
@@ -196,19 +224,6 @@ export default function TopologyPage() {
         </div>
         <div className="flex items-center gap-2">
           {(isLoading || targetLoading) && <LoadingSpinner size="sm" />}
-
-          {/* Upload toggle */}
-          <button
-            onClick={() => setShowUpload((v) => !v)}
-            className={`flex items-center gap-2 px-4 py-1.5 text-sm font-medium rounded-lg border transition-colors ${
-              showUpload || hasUploadedGraph
-                ? 'bg-emerald-900/50 border-emerald-700 text-emerald-300 hover:bg-emerald-900'
-                : 'bg-surface-card border-surface-border text-text-secondary hover:bg-surface-overlay hover:text-text-primary'
-            }`}
-          >
-            <Upload className="w-4 h-4" />
-            {hasUploadedGraph ? 'Topology Uploaded' : 'Upload Topology'}
-          </button>
 
           <button
             onClick={handleAnalyze}
@@ -228,14 +243,13 @@ export default function TopologyPage() {
             )}
           </button>
 
-          {/* Provision button — adapts based on upload state */}
           <button
-            onClick={hasUploadedGraph ? handleProvisionUploaded : handleProvisionLegacy}
+            onClick={hasSourceGraph ? handleProvisionUploaded : handleProvisionLegacy}
             disabled={provisionState === 'loading' || starting}
             className="flex items-center gap-2 px-4 py-1.5 text-sm font-medium rounded-lg bg-primary text-white hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
           >
             <DatabaseZap className="w-4 h-4" />
-            {starting ? 'Starting...' : provisionState === 'loading' ? 'Provisioning...' : 'Provision Source Topology'}
+            {starting ? 'Starting...' : provisionState === 'loading' ? 'Provisioning...' : 'Provision Source'}
           </button>
 
           <div className="flex rounded-lg border border-surface-border overflow-hidden">
@@ -255,47 +269,6 @@ export default function TopologyPage() {
           </div>
         </div>
       </div>
-
-      {/* Upload panel */}
-      <AnimatePresence>
-        {(showUpload || (!hasUploadedGraph && showUpload)) && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25 }}
-            className="overflow-hidden shrink-0"
-          >
-            <UploadTopology
-              onUpload={upload}
-              uploading={uploading}
-              uploadResult={uploadResult}
-              uploadError={uploadError}
-              onReset={() => { resetUpload(); }}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Always-visible upload success bar */}
-      {hasUploadedGraph && !showUpload && (
-        <motion.div
-          initial={{ opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between px-4 py-2 rounded-lg bg-[#0d1f17] border border-emerald-700/40 text-sm shrink-0"
-        >
-          <div className="flex items-center gap-2">
-            <CheckCircle className="w-4 h-4 text-emerald-400" />
-            <span className="text-emerald-300 font-medium">{uploadResult!.filename}</span>
-            <span className="text-text-muted text-xs">
-              · {uploadResult!.row_count} rows · {uploadResult!.node_count} nodes · {uploadResult!.edge_count} edges
-            </span>
-          </div>
-          <button onClick={() => setShowUpload(true)} className="text-xs text-text-muted hover:text-text-primary underline">
-            Change
-          </button>
-        </motion.div>
-      )}
 
       {/* Provision feedback banner */}
       {provisionMessage && (
@@ -318,8 +291,7 @@ export default function TopologyPage() {
         </div>
       )}
 
-      {/* Intelligent Empty State Banner */}
-      {isEmpty && provisionState === 'idle' && !hasUploadedGraph && (
+      {isEmpty && provisionState === 'idle' && !hasSourceGraph && (
         <div className="flex flex-col gap-4 p-6 rounded-2xl bg-surface-card border-2 border-dashed border-surface-border items-center justify-center text-center">
           <div className="w-16 h-16 rounded-2xl bg-blue-900/20 flex items-center justify-center border border-blue-800/50">
             <DatabaseZap className="w-8 h-8 text-blue-400" />
@@ -327,8 +299,7 @@ export default function TopologyPage() {
           <div>
             <h3 className="text-lg font-bold text-text-primary">Clean Fleet Detected</h3>
             <p className="text-sm text-text-muted mt-1 max-w-md">
-              No application queues were found on your source queue managers.
-              Would you like to bootstrap the hackathon source topology?
+              No application queues were found. Bootstrap the source topology or upload a topology file.
             </p>
           </div>
           <button
@@ -341,7 +312,6 @@ export default function TopologyPage() {
         </div>
       )}
 
-      {/* AI Analysis result panel */}
       {analysisResult && (
         <div className="shrink-0 rounded-xl border border-danger bg-danger/20 overflow-hidden">
           <div className="flex items-start justify-between px-4 py-3 border-b border-danger bg-danger/30">
@@ -383,7 +353,6 @@ export default function TopologyPage() {
         </div>
       )}
 
-      {/* Transparent rewiring legend */}
       {activeChannels.length > 0 && (
         <div className="flex items-center gap-4 px-4 py-2 rounded-lg bg-warning/20 border border-warning shrink-0 text-xs text-warning">
           <span className="font-semibold">Transparent Rewiring Active:</span>
@@ -401,37 +370,175 @@ export default function TopologyPage() {
       {/* ── MAIN CONTENT AREA ─────────────────────────────────────────────────── */}
       <div className="flex flex-col flex-1 gap-4 min-h-0 overflow-y-auto">
 
-        {/* Uploaded Source Topology Graph */}
-        {hasUploadedGraph && (
-          <div className="flex flex-col gap-2 shrink-0" style={{ height: hasProvisioningStarted ? '45vh' : '70vh' }}>
-            <div className="flex items-center gap-2 px-1">
-              <span className="w-2 h-2 rounded-full bg-blue-400" />
-              <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">
-                Uploaded Source Topology
-              </span>
-              <span className="text-xs text-text-muted">
-                {uploadResult!.node_count} nodes · {uploadResult!.edge_count} edges
-              </span>
+        {/* Dual Upload Canvas — Source & Target side by side */}
+        <div className="flex gap-4 shrink-0" style={{ minHeight: hasProvisioningStarted ? '45vh' : (activeSourceGraph || activeTargetGraph) ? '65vh' : '0' }}>
+          {/* Source Topology */}
+          <div className="flex-1 flex flex-col gap-2 min-w-0">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-blue-400" />
+                <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Source Topology</span>
+                {activeSourceGraph && (
+                  <span className="text-xs text-text-muted">
+                    {activeSourceGraph.nodes.length} nodes
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => setShowSourceUpload((v) => !v)}
+                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-lg border transition-colors ${
+                  activeSourceGraph
+                    ? 'bg-emerald-900/50 border-emerald-700 text-emerald-300 hover:bg-emerald-900'
+                    : 'bg-surface-card border-surface-border text-text-secondary hover:bg-surface-overlay hover:text-text-primary'
+                }`}
+              >
+                <Upload className="w-3 h-3" />
+                {activeSourceGraph ? 'Uploaded' : 'Upload Source'}
+              </button>
             </div>
-            <div className="flex-1 rounded-xl border border-surface-border overflow-hidden bg-surface-raised relative">
-              <SourceTopologyGraph
-                graph={uploadResult!.graph}
-                onNodeClick={handleNodeClick}
-              />
-              {/* Node details drawer inside graph */}
-              {selectedNode && (
-                <NodeDetailsDrawer
-                  node={selectedNode}
-                  onClose={() => setSelectedNode(null)}
-                  onRollback={handleRollback}
-                  sourceRow={selectedSourceRow}
-                />
-              )}
-            </div>
-          </div>
-        )}
 
-        {/* Provision Pipeline Board — appears after provisioning starts */}
+            <AnimatePresence>
+              {showSourceUpload && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="overflow-hidden shrink-0"
+                >
+                  <UploadTopology
+                    onUpload={handleUploadSource}
+                    uploading={uploadingSource}
+                    uploadResult={sourceUploadResult}
+                    uploadError={sourceUploadError}
+                    onReset={() => { resetSource(); setSourceTopology(null); }}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {activeSourceGraph ? (
+              <div className="flex-1 rounded-xl border border-surface-border overflow-hidden bg-surface-raised relative" style={{ minHeight: '300px' }}>
+                <SourceTopologyGraph
+                  graph={activeSourceGraph}
+                  onNodeClick={handleNodeClick}
+                />
+                {selectedNode && (
+                  <NodeDetailsDrawer
+                    node={selectedNode}
+                    onClose={() => setSelectedNode(null)}
+                    onRollback={handleRollback}
+                    sourceRow={selectedSourceRow}
+                  />
+                )}
+              </div>
+            ) : (
+              <div
+                className="flex-1 rounded-xl border-2 border-dashed border-surface-border bg-surface-card flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-blue-500/50 hover:bg-blue-900/10 transition-colors"
+                style={{ minHeight: '200px' }}
+                onClick={() => setShowSourceUpload(true)}
+              >
+                <Upload className="w-8 h-8 text-text-muted" />
+                <div className="text-center">
+                  <p className="text-sm font-medium text-text-secondary">Upload Source Topology</p>
+                  <p className="text-xs text-text-muted mt-1">CSV or XLS file</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Migrate Button between canvases */}
+          <div className="flex flex-col items-center justify-center gap-3 shrink-0 px-2">
+            <motion.button
+              onClick={() => navigate('/migration-plan')}
+              disabled={!canMigrate}
+              whileHover={canMigrate ? { scale: 1.05 } : {}}
+              whileTap={canMigrate ? { scale: 0.95 } : {}}
+              className={`flex flex-col items-center gap-2 px-4 py-3 rounded-2xl border-2 text-xs font-bold transition-all duration-200 ${
+                canMigrate
+                  ? 'bg-emerald-900/40 border-emerald-500 text-emerald-300 hover:bg-emerald-900/60 shadow-lg shadow-emerald-900/30'
+                  : 'bg-surface-card border-surface-border text-text-muted cursor-not-allowed opacity-50'
+              }`}
+            >
+              <ArrowRightLeft className="w-5 h-5" />
+              <span>Migrate</span>
+            </motion.button>
+            {!canMigrate && (
+              <p className="text-[10px] text-text-muted text-center max-w-[80px]">
+                Upload both topologies first
+              </p>
+            )}
+          </div>
+
+          {/* Target Topology */}
+          <div className="flex-1 flex flex-col gap-2 min-w-0">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Target Topology</span>
+                {activeTargetGraph && (
+                  <span className="text-xs text-text-muted">
+                    {activeTargetGraph.nodes.length} nodes
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => setShowTargetUpload((v) => !v)}
+                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-lg border transition-colors ${
+                  activeTargetGraph
+                    ? 'bg-emerald-900/50 border-emerald-700 text-emerald-300 hover:bg-emerald-900'
+                    : 'bg-surface-card border-surface-border text-text-secondary hover:bg-surface-overlay hover:text-text-primary'
+                }`}
+              >
+                <Upload className="w-3 h-3" />
+                {activeTargetGraph ? 'Uploaded' : 'Upload Target'}
+              </button>
+            </div>
+
+            <AnimatePresence>
+              {showTargetUpload && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="overflow-hidden shrink-0"
+                >
+                  <UploadTopology
+                    onUpload={handleUploadTarget}
+                    uploading={uploadingTarget}
+                    uploadResult={targetUploadResult}
+                    uploadError={targetUploadError}
+                    onReset={() => { resetTarget(); setTargetTopology(null); }}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {activeTargetGraph ? (
+              <div className="flex-1 rounded-xl border border-emerald-700/40 overflow-hidden bg-surface-raised relative" style={{ minHeight: '300px' }}>
+                <SourceTopologyGraph
+                  graph={activeTargetGraph}
+                  onNodeClick={handleNodeClick}
+                />
+              </div>
+            ) : (
+              <div
+                className="flex-1 rounded-xl border-2 border-dashed border-surface-border bg-surface-card flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-emerald-500/50 hover:bg-emerald-900/10 transition-colors"
+                style={{ minHeight: '200px' }}
+                onClick={() => setShowTargetUpload(true)}
+              >
+                <Upload className="w-8 h-8 text-text-muted" />
+                <div className="text-center">
+                  <p className="text-sm font-medium text-text-secondary">Upload Target Topology</p>
+                  <p className="text-xs text-text-muted mt-1">CSV or XLS file</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Provision Pipeline Board */}
         {hasProvisioningStarted && (
           <div className="flex flex-col gap-2 shrink-0" style={{ height: '50vh' }}>
             <div className="flex items-center justify-between px-1">
@@ -463,7 +570,6 @@ export default function TopologyPage() {
                     isComplete={provEvents.isComplete}
                     onNodeClick={(n) => setSelectedNode(n)}
                   />
-                  {/* Node details drawer for provisioning board */}
                   {selectedNode && (
                     <NodeDetailsDrawer
                       node={selectedNode}
@@ -478,11 +584,10 @@ export default function TopologyPage() {
           </div>
         )}
 
-        {/* Legacy topology canvas — shown when no file uploaded */}
-        {!hasUploadedGraph && (
+        {/* Legacy topology canvas when no files uploaded */}
+        {!activeSourceGraph && !activeTargetGraph && (
           view === 'split' ? (
             <div className="flex gap-4 flex-1 min-h-0">
-              {/* Source */}
               <div className="flex-1 flex flex-col gap-2 min-w-0">
                 <div className="flex items-center gap-2 px-1 shrink-0">
                   <span className="w-2 h-2 rounded-full bg-surface-muted" />
@@ -507,7 +612,6 @@ export default function TopologyPage() {
                 </div>
               </div>
 
-              {/* Arrow */}
               <div className="flex items-center self-center shrink-0">
                 <div className="flex flex-col items-center gap-1 text-surface-border">
                   <ArrowRight className={`w-6 h-6 ${activeChannels.length > 0 ? 'text-warning' : 'text-surface-muted'}`} />
@@ -517,7 +621,6 @@ export default function TopologyPage() {
                 </div>
               </div>
 
-              {/* Target */}
               <div className="flex-1 flex flex-col gap-2 min-w-0">
                 <div className="flex items-center gap-2 px-1 shrink-0">
                   <span className="w-2 h-2 rounded-full bg-success" />
