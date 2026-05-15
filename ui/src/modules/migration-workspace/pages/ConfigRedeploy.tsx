@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { Settings, ArrowRight, ArrowLeft, Server, Network, Lock, RefreshCw, ChevronRight, CircleCheck as CheckCircle2, Layers, GitBranch, Zap, TriangleAlert as AlertTriangle, Terminal, Play, RotateCcw } from 'lucide-react';
 import MigrationHeader from '../components/MigrationHeader';
 import { useWorkspaceStore } from '../store/workspaceStore';
+import { useFlows } from '../hooks';
+import { streamRedeploy } from '../services';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -146,10 +148,12 @@ function levelColor(level: ConsoleLine['level']): string {
 
 export default function ConfigRedeploy() {
   const navigate = useNavigate();
-  const { setStep, addTimelineEvent } = useWorkspaceStore();
+  const { setStep, addTimelineEvent, selectedAppId } = useWorkspaceStore();
+  const { flows } = useFlows(selectedAppId);
+  const activeFlow = flows[0] ?? null;
 
   const [config, setConfig] = useState<RuntimeConfig>({
-    queueManager: 'CLOUD.PAY.QM1',
+    queueManager: activeFlow?.targetQM ?? 'CLOUD.PAY.QM1',
     channel: 'CLOUD.SVRCONN',
     host: 'cloud.pay.qm1.mq.ibm.com',
     port: '1414',
@@ -158,12 +162,20 @@ export default function ConfigRedeploy() {
     retryPolicy: 'exponential',
   });
 
+  // Sync config when flow loads
+  useEffect(() => {
+    if (activeFlow?.targetQM) {
+      setConfig(c => ({ ...c, queueManager: activeFlow.targetQM }));
+    }
+  }, [activeFlow?.targetQM]);
+
   const [strategy, setStrategy] = useState<DeploymentStrategy>('blue-green');
   const [deploying, setDeploying] = useState(false);
   const [deployDone, setDeployDone] = useState(false);
-  const [consoleLines, setConsoleLines] = useState<ConsoleeLine[]>([]);
+  const [consoleLines, setConsoleLines] = useState<ConsoleLine[]>([]);
   const consoleRef = useRef<HTMLDivElement>(null);
   const lineCounter = useRef(0);
+  const esRef = useRef<EventSource | null>(null);
 
   // auto scroll console
   useEffect(() => {
@@ -175,18 +187,65 @@ export default function ConfigRedeploy() {
     setDeployDone(false);
     setConsoleLines([]);
     setDeploying(true);
-    const sequence = DEPLOY_SEQUENCES[strategy];
-    let i = 0;
-    const delays = sequence.map((_, idx) => 300 + idx * 220 + Math.random() * 120);
-    let cumulative = 0;
 
+    // Try SSE stream from backend first, fall back to local simulation
+    const es = streamRedeploy({
+      strategy,
+      queueManager: config.queueManager,
+      channel: config.channel,
+      host: config.host,
+      port: config.port,
+      queueName: config.queueName,
+      tls: config.tls,
+      retryPolicy: config.retryPolicy,
+    });
+    esRef.current = es;
+    let receivedAny = false;
+
+    es.onmessage = (ev) => {
+      try {
+        const data = JSON.parse(ev.data);
+        if (data.type === 'done') {
+          setDeploying(false);
+          setDeployDone(true);
+          es.close();
+          return;
+        }
+        if (data.level) {
+          receivedAny = true;
+          const line: ConsoleLine = {
+            id: lineCounter.current++,
+            ts: nowTs(),
+            level: data.level as ConsoleLine['level'],
+            text: data.text,
+          };
+          setConsoleLines(prev => [...prev, line]);
+        }
+      } catch { /* ignore */ }
+    };
+
+    es.onerror = () => {
+      es.close();
+      if (!receivedAny) {
+        // Fall back to local simulation
+        runLocalSimulation();
+      } else {
+        setDeploying(false);
+        setDeployDone(true);
+      }
+    };
+  }
+
+  function runLocalSimulation() {
+    const sequence = DEPLOY_SEQUENCES[strategy];
+    let cumulative = 0;
     sequence.forEach((entry, idx) => {
-      cumulative += delays[idx];
+      cumulative += 300 + idx * 220 + Math.random() * 120;
       setTimeout(() => {
-        const line: ConsoleeLine = {
+        const line: ConsoleLine = {
           id: lineCounter.current++,
           ts: nowTs(),
-          level: entry[0] as ConsoleeLine['level'],
+          level: entry[0] as ConsoleLine['level'],
           text: entry[1],
         };
         setConsoleLines(prev => [...prev, line]);

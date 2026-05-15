@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowRight, ArrowRightLeft, ShieldCheck, TrendingUp, TriangleAlert as AlertTriangle, RotateCcw, CircleCheck as CheckCircle2, Circle as XCircle, Activity, Layers, Radio, Zap, Users, Terminal, ChevronRight, GitBranch } from 'lucide-react';
 import MigrationHeader from '../components/MigrationHeader';
 import { useWorkspaceStore } from '../store/workspaceStore';
+import { useFlows, useTargetValidation, useTrafficShift } from '../hooks';
 import { format } from 'date-fns';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -424,13 +425,19 @@ export default function TargetValidation() {
     addTimelineEvent,
     setTrafficSplit: storeSetSplit,
     trafficSplit: storedSplit,
+    selectedAppId,
   } = useWorkspaceStore();
+
+  const { flows } = useFlows(selectedAppId);
+  const activeFlow = flows[0] ?? null;
+  const targetQM = activeFlow?.targetQM ?? 'CLOUD.PAY.QM1';
+  const sourceQM = activeFlow?.sourceQM ?? 'PAY.QM1';
+
+  const { checks: apiChecks, isRunning: isValidating, isDone: validationDone, run: runTargetValidation, reset: resetValidation } = useTargetValidation();
+  const { shift: shiftTraffic, doRollback: doApiRollback } = useTrafficShift();
 
   const [activePath, setActivePath] = useState<ActivePath>('source');
   const [trafficSplit, setTrafficSplitLocal] = useState(storedSplit ?? 0);
-  const [checks, setChecks] = useState<ValidationResult[]>(PENDING_CHECKS);
-  const [isValidating, setIsValidating] = useState(false);
-  const [validationDone, setValidationDone] = useState(false);
   const [isPromoted, setIsPromoted] = useState(false);
   const [metrics, setMetrics] = useState<ValidationMetrics>(INITIAL_METRICS);
   const [particles, setParticles] = useState<TrafficParticle[]>([]);
@@ -438,6 +445,17 @@ export default function TargetValidation() {
 
   const logBottomRef = useRef<HTMLDivElement>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  // Map apiChecks to ValidationResult[]
+  const checks: ValidationResult[] = apiChecks.length > 0
+    ? apiChecks.map(c => ({
+        id: c.id,
+        label: c.label,
+        status: c.status as ValidationResult['status'],
+        detail: c.detail,
+        latency: c.latency,
+      }))
+    : PENDING_CHECKS;
 
   useEffect(() => {
     logBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -484,43 +502,32 @@ export default function TargetValidation() {
     return () => clearInterval(raf);
   }, []);
 
-  const handleValidateTarget = useCallback(() => {
-    if (isValidating || validationDone) return;
-    setIsValidating(true);
-    setChecks(PENDING_CHECKS);
-    appendLog('INFO', 'TargetValidation', 'Starting target topology validation — CLOUD.PAY.QM1…');
-
-    PENDING_CHECKS.forEach((check, i) => {
-      schedule(() => {
-        setChecks((prev) => prev.map((c) => c.id === check.id ? { ...c, status: 'running' } : c));
-      }, i * 380 + 150);
-      schedule(() => {
-        const passed = PASSED_CHECKS.find((c) => c.id === check.id)!;
-        setChecks((prev) => prev.map((c) => c.id === check.id ? passed : c));
-        appendLog('SUCCESS', check.label, passed.detail ?? 'Check passed');
-      }, i * 380 + 620);
-    });
-
-    schedule(() => {
-      setIsValidating(false);
-      setValidationDone(true);
+  // React to validation completing
+  useEffect(() => {
+    if (validationDone) {
       setMetrics((m) => ({
         ...m,
         consumersUp:    { ...m.consumersUp,    target: '2/2' },
         activeChannels: { ...m.activeChannels, target: 3     },
         throughput:     { ...m.throughput,     target: 12120 },
       }));
-      appendLog('SUCCESS', 'TargetValidation', 'All checks passed — target topology ready for traffic');
+      appendLog('SUCCESS', 'TargetValidation', `All checks passed — ${targetQM} ready for traffic`);
       addTimelineEvent({
         type: 'success',
         title: 'Target Validation Passed',
-        detail: 'CLOUD.PAY.QM1 fully validated — ready for traffic shift',
+        detail: `${targetQM} fully validated — ready for traffic shift`,
         step: 'target-validation',
       });
-    }, PENDING_CHECKS.length * 380 + 700);
-  }, [isValidating, validationDone, appendLog, schedule, addTimelineEvent]);
+    }
+  }, [validationDone]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleShiftTraffic = useCallback(() => {
+  const handleValidateTarget = useCallback(() => {
+    if (isValidating || validationDone) return;
+    appendLog('INFO', 'TargetValidation', `Starting target topology validation — ${targetQM}…`);
+    runTargetValidation(targetQM);
+  }, [isValidating, validationDone, targetQM, appendLog, runTargetValidation]);
+
+  const handleShiftTraffic = useCallback(async () => {
     if (!validationDone || isPromoted) return;
     const next = Math.min(trafficSplit + 25, 100);
     setTrafficSplitLocal(next);
@@ -532,14 +539,20 @@ export default function TargetValidation() {
       queueDepth: { source: Math.max(0, 11 - Math.floor(next / 10)), target: Math.floor(next / 10) },
       throughput: { source: Math.floor(12455 * (100 - next) / 100), target: Math.floor(12120 * next / 100) },
     }));
-  }, [validationDone, isPromoted, trafficSplit, storeSetSplit, appendLog]);
+    if (activeFlow) {
+      await shiftTraffic(activeFlow.id, next).catch(() => {});
+    }
+  }, [validationDone, isPromoted, trafficSplit, storeSetSplit, appendLog, activeFlow, shiftTraffic]);
 
-  const handleManualSlider = useCallback((v: number) => {
+  const handleManualSlider = useCallback(async (v: number) => {
     if (!validationDone || isPromoted) return;
     setTrafficSplitLocal(v);
     storeSetSplit(v);
     setActivePath(v === 0 ? 'source' : v === 100 ? 'target' : 'split');
-  }, [validationDone, isPromoted, storeSetSplit]);
+    if (activeFlow) {
+      await shiftTraffic(activeFlow.id, v).catch(() => {});
+    }
+  }, [validationDone, isPromoted, storeSetSplit, activeFlow, shiftTraffic]);
 
   const handlePromote = useCallback(() => {
     if (!validationDone || isPromoted) return;
@@ -554,35 +567,39 @@ export default function TargetValidation() {
       consumersUp:    { source: '0/2', target: '2/2' },
       activeChannels: { source: 0,     target: 3     },
     }));
-    appendLog('SUCCESS', 'TrafficController', 'Target promoted — 100% traffic on CLOUD.PAY.QM1');
+    appendLog('SUCCESS', 'TrafficController', `Target promoted — 100% traffic on ${targetQM}`);
     addTimelineEvent({
       type: 'success',
       title: 'Target Promoted',
-      detail: 'All traffic shifted to CLOUD.PAY.QM1 — migration complete',
+      detail: `All traffic shifted to ${targetQM} — migration complete`,
       step: 'target-validation',
     });
+    if (activeFlow) {
+      shiftTraffic(activeFlow.id, 100).catch(() => {});
+    }
     setStep('summary');
     schedule(() => navigate('/migration/summary'), 1200);
-  }, [validationDone, isPromoted, appendLog, addTimelineEvent, setStep, schedule, navigate]);
+  }, [validationDone, isPromoted, appendLog, addTimelineEvent, setStep, schedule, navigate, targetQM, activeFlow, shiftTraffic]);
 
-  const handleRollback = useCallback(() => {
+  const handleRollback = useCallback(async () => {
     setActivePath('source');
     setTrafficSplitLocal(0);
     storeSetSplit(0);
     setIsPromoted(false);
     setMetrics(INITIAL_METRICS);
-    setChecks(PENDING_CHECKS);
-    setValidationDone(false);
-    setIsValidating(false);
+    resetValidation();
     setLogs([]);
-    appendLog('WARNING', 'TrafficController', 'Rollback — traffic fully restored to SOURCE PAY.QM1');
+    appendLog('WARNING', 'TrafficController', `Rollback — traffic fully restored to SOURCE ${sourceQM}`);
     addTimelineEvent({
       type: 'warning',
       title: 'Rollback Executed',
-      detail: 'Traffic returned to PAY.QM1 — target validation reset',
+      detail: `Traffic returned to ${sourceQM} — target validation reset`,
       step: 'target-validation',
     });
-  }, [storeSetSplit, appendLog, addTimelineEvent]);
+    if (activeFlow) {
+      await doApiRollback(activeFlow.id, 'User requested rollback').catch(() => {});
+    }
+  }, [storeSetSplit, appendLog, addTimelineEvent, resetValidation, sourceQM, activeFlow, doApiRollback]);
 
   const passedCount = checks.filter((c) => c.status === 'passed').length;
   const srcActive = activePath === 'source' || activePath === 'split';
@@ -606,7 +623,7 @@ export default function TargetValidation() {
             <div className="w-2 h-2 rounded-full" style={{ background: '#f59e0b', boxShadow: '0 0 6px #f59e0b' }} />
             <span className="text-xs font-semibold text-text-primary">Target Validation</span>
             <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full border border-amber-400/30 text-amber-400 font-mono">
-              CLOUD.PAY.QM1
+              {targetQM}
             </span>
           </div>
 

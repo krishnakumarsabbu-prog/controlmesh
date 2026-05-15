@@ -5,6 +5,7 @@ import { CircleCheck as CheckCircle2, Download, RotateCcw, Circle as XCircle, Fi
 import { format, formatDistanceToNow } from 'date-fns';
 import MigrationHeader from '../components/MigrationHeader';
 import { useWorkspaceStore } from '../store/workspaceStore';
+import { useFlows } from '../hooks';
 import type { RuntimeLogEntry } from '../types';
 
 // ─── Step data ───────────────────────────────────────────────────────────────
@@ -27,7 +28,7 @@ const LEVEL_STYLE: Record<RuntimeLogEntry['level'], { color: string; bg: string;
 
 // ─── Banner ──────────────────────────────────────────────────────────────────
 
-function SummaryBanner() {
+function SummaryBanner({ appName, sourceQM, targetQM }: { appName: string; sourceQM: string; targetQM: string }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: -16 }}
@@ -62,7 +63,7 @@ function SummaryBanner() {
       <div className="flex-1 min-w-0">
         <div className="text-base font-bold text-text-primary mb-0.5">Migration Completed Successfully</div>
         <div className="text-sm text-text-muted">
-          PaymentAPI — PAY.QM1 → CLOUD.PAY.QM1 &nbsp;·&nbsp;
+          {appName} — {sourceQM} → {targetQM} &nbsp;·&nbsp;
           Completed {formatDistanceToNow(Date.now() - 5000, { addSuffix: true })}
         </div>
       </div>
@@ -281,13 +282,13 @@ function MetricsSummary() {
 
 // ─── Logs panel ───────────────────────────────────────────────────────────────
 
-function LogsPanel() {
+function LogsPanel({ targetQM }: { targetQM: string }) {
   const { runtimeLogs } = useWorkspaceStore();
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const finalLogs: RuntimeLogEntry[] = [
     ...runtimeLogs,
-    { timestamp: Date.now() - 15000, level: 'SUCCESS', service: 'MigrationEngine', message: 'Traffic shift completed: 100% on CLOUD.PAY.QM1' },
+    { timestamp: Date.now() - 15000, level: 'SUCCESS', service: 'MigrationEngine', message: `Traffic shift completed: 100% on ${targetQM}` },
     { timestamp: Date.now() - 10000, level: 'SUCCESS', service: 'ValidationAgent', message: 'Post-migration validation passed — all checks green' },
     { timestamp: Date.now() - 5000,  level: 'SUCCESS', service: 'Orchestrator',    message: 'Migration completed. State → MIGRATED'            },
   ];
@@ -474,7 +475,7 @@ function RollbackConfirm({
           </div>
         </div>
         <p className="text-xs text-text-secondary mb-5 leading-relaxed">
-          Rolling back will restore traffic to PAY.QM1 (source) and decommission the target
+          Rolling back will restore traffic to the source queue manager and decommission the target
           configuration. All migrated state will be preserved in audit logs.
         </p>
         <div className="flex gap-3">
@@ -510,7 +511,14 @@ function RollbackConfirm({
 
 export default function MigrationSummary() {
   const navigate = useNavigate();
-  const { resetWorkspace } = useWorkspaceStore();
+  const { resetWorkspace, selectedAppId } = useWorkspaceStore();
+  const { flows } = useFlows(selectedAppId);
+  const activeFlow = flows[0] ?? null;
+
+  const appName = selectedAppId ? selectedAppId.replace('app-', '') : 'Application';
+  const sourceQM = activeFlow?.sourceQM ?? 'PAY.QM1';
+  const targetQM = activeFlow?.targetQM ?? 'CLOUD.PAY.QM1';
+
   const [showRollback, setShowRollback] = useState(false);
 
   const handleClose = () => {
@@ -530,14 +538,14 @@ export default function MigrationSummary() {
 
       <div className="flex-1 overflow-y-auto p-6 space-y-5">
         {/* Top: success banner */}
-        <SummaryBanner />
+        <SummaryBanner appName={appName} sourceQM={sourceQM} targetQM={targetQM} />
 
         {/* Center + Right */}
         <div className="flex gap-5">
           {/* Center */}
           <div className="flex-1 min-w-0 space-y-5">
             <MigrationStepTimeline />
-            <LogsPanel />
+            <LogsPanel targetQM={targetQM} />
           </div>
 
           {/* Right: metrics */}

@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, CircleCheck as CheckCircle2, TriangleAlert as AlertTriangle, Zap, ArrowRight, Server, Database, GitBranch, Cpu, RefreshCw, Download, Play, Shield, Clock, TrendingUp, TrendingDown, Minus, ChevronRight, Circle, Box } from 'lucide-react';
+import { Activity, CircleCheck as CheckCircle2, TriangleAlert as AlertTriangle, Zap, ArrowRight, Server, Database, GitBranch, Cpu, RefreshCw, Download, Play, Shield, TrendingUp, TrendingDown, Minus, ChevronRight, Circle, Box } from 'lucide-react';
 import MigrationHeader from '../components/MigrationHeader';
 import MigrationFlowCanvas from '../components/MigrationFlowCanvas';
 import { useWorkspaceStore } from '../store/workspaceStore';
-import { MOCK_APPLICATIONS, MOCK_FLOWS, MOCK_LIVE_METRICS, MOCK_RUNTIME_LOGS } from '../mock/data';
-import type { WorkspaceApplication } from '../types';
+import { useApplications, useFlows, useApplicationMetrics, useLogStream } from '../hooks';
+import type { WorkspaceApplication, WorkspaceFlow, LiveMetric } from '../types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -34,10 +34,9 @@ function logLevelColor(level: string) {
   }
 }
 
-// ── Left Panel — AppCard ──────────────────────────────────────────────────────
+// ── AppCard ───────────────────────────────────────────────────────────────────
 
-function AppCard({ app, selected, onSelect }: { app: WorkspaceApplication; selected: boolean; onSelect: () => void }) {
-  const flow = MOCK_FLOWS.find(f => f.appId === app.id);
+function AppCard({ app, flow, selected, onSelect }: { app: WorkspaceApplication; flow?: WorkspaceFlow; selected: boolean; onSelect: () => void }) {
   const totalTps = [...app.producers, ...app.consumers].reduce((s, sv) => s + sv.tps, 0);
 
   return (
@@ -58,7 +57,6 @@ function AppCard({ app, selected, onSelect }: { app: WorkspaceApplication; selec
         <div className="h-0.5 w-full" style={{ background: 'linear-gradient(90deg, #22d3ee, rgba(34,211,238,0.3))' }} />
       )}
       <div className="p-3">
-        {/* App name + health */}
         <div className="flex items-start justify-between mb-2">
           <div>
             <div className="flex items-center gap-2 mb-0.5">
@@ -80,7 +78,6 @@ function AppCard({ app, selected, onSelect }: { app: WorkspaceApplication; selec
           </div>
         </div>
 
-        {/* TPS bar */}
         <div className="mb-2.5">
           <div className="flex justify-between text-[10px] mb-1">
             <span style={{ color: 'var(--text-muted)' }}>Traffic</span>
@@ -97,23 +94,17 @@ function AppCard({ app, selected, onSelect }: { app: WorkspaceApplication; selec
           </div>
         </div>
 
-        {/* Producers / Consumers counts */}
         <div className="grid grid-cols-2 gap-2 mb-2.5">
           <div className="rounded-lg px-2 py-1.5 text-center" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.15)' }}>
-            <div className="text-[10px] font-semibold" style={{ color: '#10b981' }}>
-              {app.producers.length}
-            </div>
+            <div className="text-[10px] font-semibold" style={{ color: '#10b981' }}>{app.producers.length}</div>
             <div className="text-[9px]" style={{ color: 'var(--text-muted)' }}>Producers</div>
           </div>
           <div className="rounded-lg px-2 py-1.5 text-center" style={{ background: 'rgba(6,182,212,0.08)', border: '1px solid rgba(6,182,212,0.15)' }}>
-            <div className="text-[10px] font-semibold" style={{ color: '#22d3ee' }}>
-              {app.consumers.length}
-            </div>
+            <div className="text-[10px] font-semibold" style={{ color: '#22d3ee' }}>{app.consumers.length}</div>
             <div className="text-[9px]" style={{ color: 'var(--text-muted)' }}>Consumers</div>
           </div>
         </div>
 
-        {/* Producer list */}
         <div className="space-y-1">
           {app.producers.map(svc => (
             <div key={svc.id} className="flex items-center gap-1.5 text-[10px]">
@@ -131,7 +122,6 @@ function AppCard({ app, selected, onSelect }: { app: WorkspaceApplication; selec
           ))}
         </div>
 
-        {/* QM info */}
         {flow && (
           <div className="mt-2.5 pt-2 border-t flex items-center justify-between" style={{ borderColor: 'var(--surface-border)' }}>
             <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
@@ -146,7 +136,7 @@ function AppCard({ app, selected, onSelect }: { app: WorkspaceApplication; selec
   );
 }
 
-// ── Right Panel — Metadata section ────────────────────────────────────────────
+// ── MetaRow ───────────────────────────────────────────────────────────────────
 
 function MetaRow({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
@@ -181,39 +171,39 @@ function ValidationStatusRow({ label, status }: { label: string; status: 'passed
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function MigrationWorkspace() {
-  const { selectedAppId, selectApp, runtimeLogs } = useWorkspaceStore();
-  const selectedApp = MOCK_APPLICATIONS.find(a => a.id === selectedAppId) ?? null;
-  const flow = selectedApp ? MOCK_FLOWS.find(f => f.appId === selectedApp.id) : MOCK_FLOWS[0];
-  const logEndRef = useRef<HTMLDivElement>(null);
-  const [logTick, setLogTick] = useState(0);
+  const { selectedAppId, selectApp, setApplications, setFlows } = useWorkspaceStore();
 
-  // Auto-scroll logs
+  // Dynamic data from API
+  const { applications, loading: appsLoading } = useApplications();
+  const { flows } = useFlows(null);
+  const metrics = useApplicationMetrics(selectedAppId);
+  const streamedLogs = useLogStream(selectedAppId);
+
+  const selectedApp = applications.find(a => a.id === selectedAppId) ?? null;
+  const flow = selectedApp ? flows.find(f => f.appId === selectedApp.id) : flows[0];
+
+  const logEndRef = useRef<HTMLDivElement>(null);
+
+  // Sync into store for other pages
+  useEffect(() => {
+    if (applications.length > 0) setApplications(applications);
+  }, [applications, setApplications]);
+
+  useEffect(() => {
+    if (flows.length > 0) setFlows(flows);
+  }, [flows, setFlows]);
+
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [runtimeLogs]);
-
-  // Simulate live log additions
-  useEffect(() => {
-    const messages = [
-      { level: 'INFO' as const, service: 'PAY.QM1', message: 'Health check: OK — 14 queues active' },
-      { level: 'INFO' as const, service: 'PaymentAPI', message: `Message batch dispatched (${Math.floor(Math.random() * 200 + 50)} msgs)` },
-      { level: 'SUCCESS' as const, service: 'LedgerService', message: 'Consumed 48 messages from PAY.EVENT.IN' },
-    ];
-    const id = setInterval(() => {
-      setLogTick(t => t + 1);
-    }, 4000);
-    return () => clearInterval(id);
-  }, []);
+  }, [streamedLogs]);
 
   return (
     <div className="flex flex-col h-full -m-6 overflow-hidden" style={{ background: 'var(--surface-base)' }}>
-      {/* ── Top Header ─────────────────────────────────────────────────────── */}
       <MigrationHeader />
 
-      {/* ── 3-Column Main Area ─────────────────────────────────────────────── */}
       <div className="flex flex-1 overflow-hidden min-h-0">
 
-        {/* ── LEFT PANEL ────────────────────────────────────────────────────── */}
+        {/* ── LEFT PANEL ──────────────────────────────────────────────────── */}
         <motion.aside
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -221,7 +211,6 @@ export default function MigrationWorkspace() {
           className="w-72 shrink-0 flex flex-col border-r overflow-hidden"
           style={{ background: 'var(--surface-raised)', borderColor: 'var(--surface-border)' }}
         >
-          {/* Left panel header */}
           <div className="px-4 py-3 border-b flex items-center justify-between shrink-0"
             style={{ borderColor: 'var(--surface-border)' }}>
             <div className="flex items-center gap-2">
@@ -231,59 +220,63 @@ export default function MigrationWorkspace() {
             <div className="flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded-full"
               style={{ background: 'rgba(6,182,212,0.1)', color: '#22d3ee', border: '1px solid rgba(6,182,212,0.2)' }}>
               <div className="w-1 h-1 rounded-full bg-cyan-400 animate-pulse" />
-              {MOCK_APPLICATIONS.filter(a => a.status === 'healthy').length}/{MOCK_APPLICATIONS.length} Healthy
+              {appsLoading ? '…' : `${applications.filter(a => a.status === 'healthy').length}/${applications.length} Healthy`}
             </div>
           </div>
 
-          {/* Producers section */}
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
-            <div>
-              <div className="flex items-center gap-1.5 mb-2 px-1">
-                <Cpu className="w-3 h-3" style={{ color: '#10b981' }} />
-                <span className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: '#10b981' }}>
-                  Producer Apps
-                </span>
-              </div>
-              <div className="space-y-2">
-                {MOCK_APPLICATIONS.filter(a => a.producers.length > 0).map(app => (
-                  <AppCard
-                    key={app.id}
-                    app={app}
-                    selected={selectedAppId === app.id}
-                    onSelect={() => selectApp(selectedAppId === app.id ? null : app.id)}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Consumer section — subset view */}
-            <div>
-              <div className="flex items-center gap-1.5 mb-2 px-1">
-                <Box className="w-3 h-3" style={{ color: '#818cf8' }} />
-                <span className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: '#818cf8' }}>
-                  Consumer Services
-                </span>
-              </div>
-              <div className="space-y-1.5">
-                {MOCK_APPLICATIONS.flatMap(a => a.consumers).map(svc => (
-                  <div key={svc.id}
-                    className="flex items-center gap-2 px-2.5 py-2 rounded-lg border text-[11px]"
-                    style={{ background: 'var(--surface-card)', borderColor: 'var(--surface-border)' }}
-                  >
-                    <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: statusColor(svc.status) }} />
-                    <span className="flex-1 truncate font-medium" style={{ color: 'var(--text-secondary)' }}>{svc.name}</span>
-                    <span className="font-mono text-[10px]" style={{ color: '#818cf8' }}>{svc.tps.toLocaleString()}</span>
+            {appsLoading ? (
+              <div className="text-center py-8 text-xs" style={{ color: 'var(--text-muted)' }}>Loading applications…</div>
+            ) : (
+              <>
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2 px-1">
+                    <Cpu className="w-3 h-3" style={{ color: '#10b981' }} />
+                    <span className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: '#10b981' }}>
+                      Producer Apps
+                    </span>
                   </div>
-                ))}
-              </div>
-            </div>
+                  <div className="space-y-2">
+                    {applications.filter(a => a.producers.length > 0).map(app => (
+                      <AppCard
+                        key={app.id}
+                        app={app}
+                        flow={flows.find(f => f.appId === app.id)}
+                        selected={selectedAppId === app.id}
+                        onSelect={() => selectApp(selectedAppId === app.id ? null : app.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2 px-1">
+                    <Box className="w-3 h-3" style={{ color: '#818cf8' }} />
+                    <span className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: '#818cf8' }}>
+                      Consumer Services
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {applications.flatMap(a => a.consumers).map(svc => (
+                      <div key={svc.id}
+                        className="flex items-center gap-2 px-2.5 py-2 rounded-lg border text-[11px]"
+                        style={{ background: 'var(--surface-card)', borderColor: 'var(--surface-border)' }}
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: statusColor(svc.status) }} />
+                        <span className="flex-1 truncate font-medium" style={{ color: 'var(--text-secondary)' }}>{svc.name}</span>
+                        <span className="font-mono text-[10px]" style={{ color: '#818cf8' }}>{svc.tps.toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </motion.aside>
 
-        {/* ── CENTER PANEL ──────────────────────────────────────────────────── */}
+        {/* ── CENTER PANEL ────────────────────────────────────────────────── */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
-          {/* Canvas toolbar */}
           <div className="px-4 py-2.5 border-b flex items-center justify-between shrink-0"
             style={{ borderColor: 'var(--surface-border)', background: 'var(--surface-raised)' }}>
             <div className="flex items-center gap-3">
@@ -314,11 +307,7 @@ export default function MigrationWorkspace() {
             <div className="flex items-center gap-2">
               <select
                 className="text-[11px] py-0.5 px-2 rounded-md border"
-                style={{
-                  background: 'var(--surface-card)',
-                  borderColor: 'var(--surface-border)',
-                  color: 'var(--text-secondary)',
-                }}
+                style={{ background: 'var(--surface-card)', borderColor: 'var(--surface-border)', color: 'var(--text-secondary)' }}
               >
                 <option>Logical Flow</option>
                 <option>Physical</option>
@@ -331,7 +320,6 @@ export default function MigrationWorkspace() {
             </div>
           </div>
 
-          {/* React Flow Canvas */}
           <div className="flex-1 min-h-0 relative overflow-hidden">
             <AnimatePresence mode="wait">
               {selectedAppId ? (
@@ -373,7 +361,7 @@ export default function MigrationWorkspace() {
             </AnimatePresence>
           </div>
 
-          {/* ── BOTTOM PANEL — Live Flow / Runtime Logs ──────────────────── */}
+          {/* ── BOTTOM — Live Flow / Runtime Logs ─────────────────────── */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
@@ -405,7 +393,7 @@ export default function MigrationWorkspace() {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto px-3 py-2 font-mono text-[10px] space-y-0.5">
-              {[...runtimeLogs].slice(-30).map((log, i) => (
+              {streamedLogs.slice(-30).map((log, i) => (
                 <motion.div
                   key={i}
                   initial={{ opacity: 0, x: -4 }}
@@ -413,12 +401,7 @@ export default function MigrationWorkspace() {
                   className="flex items-start gap-2 py-0.5 hover:bg-white/[0.02] rounded px-1 transition-colors"
                 >
                   <span style={{ color: 'var(--text-muted)', minWidth: 72 }}>{formatTs(log.timestamp)}</span>
-                  <span
-                    className="font-bold min-w-[52px]"
-                    style={{ color: logLevelColor(log.level) }}
-                  >
-                    {log.level}
-                  </span>
+                  <span className="font-bold min-w-[52px]" style={{ color: logLevelColor(log.level) }}>{log.level}</span>
                   <span className="min-w-[110px]" style={{ color: '#818cf8' }}>{log.service}</span>
                   <span style={{ color: 'var(--text-secondary)' }}>{log.message}</span>
                 </motion.div>
@@ -428,7 +411,7 @@ export default function MigrationWorkspace() {
           </motion.div>
         </div>
 
-        {/* ── RIGHT PANEL ───────────────────────────────────────────────────── */}
+        {/* ── RIGHT PANEL ─────────────────────────────────────────────────── */}
         <motion.aside
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -458,30 +441,30 @@ export default function MigrationWorkspace() {
             />
           </div>
 
-          {/* Migration Status */}
+          {/* Validation Status */}
           <div className="px-4 py-3 border-b shrink-0" style={{ borderColor: 'var(--surface-border)' }}>
             <div className="flex items-center gap-2 mb-2.5">
               <Shield className="w-3.5 h-3.5" style={{ color: '#22c55e' }} />
               <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>Validation Status</span>
             </div>
             <div className="space-y-0.5">
-              <ValidationStatusRow label="QM Reachability"  status="passed" />
-              <ValidationStatusRow label="TLS Handshake"    status="passed" />
-              <ValidationStatusRow label="Auth / CCDT"      status="passed" />
+              <ValidationStatusRow label="QM Reachability"   status="passed" />
+              <ValidationStatusRow label="TLS Handshake"     status="passed" />
+              <ValidationStatusRow label="Auth / CCDT"       status="passed" />
               <ValidationStatusRow label="Queue Definitions" status="passed" />
-              <ValidationStatusRow label="DLQ Policy"       status="warning" />
+              <ValidationStatusRow label="DLQ Policy"        status="warning" />
               <ValidationStatusRow label="Message Roundtrip" status="passed" />
             </div>
           </div>
 
-          {/* Live Traffic Metrics */}
+          {/* Live Metrics — dynamic */}
           <div className="px-4 py-3 border-b shrink-0" style={{ borderColor: 'var(--surface-border)' }}>
             <div className="flex items-center gap-2 mb-3">
               <TrendingUp className="w-3.5 h-3.5" style={{ color: '#22d3ee' }} />
               <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>Live Metrics</span>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {MOCK_LIVE_METRICS.map((m, i) => {
+              {metrics.map((m: LiveMetric, i: number) => {
                 const accentMap: Record<string, string> = { cyan: '#22d3ee', green: '#22c55e', amber: '#f59e0b', red: '#ef4444' };
                 const accent = accentMap[m.color ?? 'cyan'];
                 return (
@@ -521,19 +504,15 @@ export default function MigrationWorkspace() {
             </div>
             <div className="space-y-2">
               {[
-                { label: 'Validate Source',   icon: <Shield className="w-3 h-3" />,     color: '#22d3ee' },
-                { label: 'View Target Topo',  icon: <GitBranch className="w-3 h-3" />,  color: '#a78bfa' },
-                { label: 'Export Flow',       icon: <Download className="w-3 h-3" />,   color: '#6b7280' },
-                { label: 'Run Probe',         icon: <Activity className="w-3 h-3" />,   color: '#22c55e' },
+                { label: 'Validate Source',  icon: <Shield className="w-3 h-3" />,    color: '#22d3ee' },
+                { label: 'View Target Topo', icon: <GitBranch className="w-3 h-3" />, color: '#a78bfa' },
+                { label: 'Export Flow',      icon: <Download className="w-3 h-3" />,  color: '#6b7280' },
+                { label: 'Run Probe',        icon: <Activity className="w-3 h-3" />,  color: '#22c55e' },
               ].map(action => (
                 <button
                   key={action.label}
                   className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-[11px] font-medium transition-all duration-150 hover:bg-white/5"
-                  style={{
-                    borderColor: 'var(--surface-border)',
-                    color: action.color,
-                    background: 'transparent',
-                  }}
+                  style={{ borderColor: 'var(--surface-border)', color: action.color, background: 'transparent' }}
                 >
                   {action.icon}
                   {action.label}
@@ -544,7 +523,7 @@ export default function MigrationWorkspace() {
         </motion.aside>
       </div>
 
-      {/* ── BOTTOM SUMMARY BAR ────────────────────────────────────────────── */}
+      {/* ── BOTTOM SUMMARY BAR ──────────────────────────────────────────── */}
       <div
         className="shrink-0 px-6 py-3 border-t flex items-center justify-between"
         style={{ borderColor: 'var(--surface-border)', background: 'var(--surface-raised)' }}
@@ -558,13 +537,13 @@ export default function MigrationWorkspace() {
         </div>
         <div className="flex items-center gap-8 text-xs">
           {[
-            { label: 'Applications',      value: `${MOCK_APPLICATIONS.length} apps`, color: 'var(--text-primary)' },
-            { label: 'Producers',         value: `${MOCK_APPLICATIONS.reduce((s, a) => s + a.producers.length, 0)} services`, color: '#10b981' },
-            { label: 'Consumers',         value: `${MOCK_APPLICATIONS.reduce((s, a) => s + a.consumers.length, 0)} services`, color: '#22d3ee' },
-            { label: 'Source Topology',   value: flow?.sourceQM ?? '—', color: '#22d3ee' },
-            { label: 'Target Topology',   value: flow?.targetQM ?? '—', color: '#a78bfa' },
-            { label: 'Est. Downtime',     value: '~15 sec', color: 'var(--text-primary)' },
-            { label: 'Strategy',          value: 'Blue/Green', color: 'var(--text-primary)' },
+            { label: 'Applications',    value: `${applications.length} apps`,                                                                    color: 'var(--text-primary)' },
+            { label: 'Producers',       value: `${applications.reduce((s, a) => s + a.producers.length, 0)} services`,                          color: '#10b981' },
+            { label: 'Consumers',       value: `${applications.reduce((s, a) => s + a.consumers.length, 0)} services`,                          color: '#22d3ee' },
+            { label: 'Source Topology', value: flow?.sourceQM ?? '—',                                                                            color: '#22d3ee' },
+            { label: 'Target Topology', value: flow?.targetQM ?? '—',                                                                            color: '#a78bfa' },
+            { label: 'Est. Downtime',   value: '~15 sec',                                                                                        color: 'var(--text-primary)' },
+            { label: 'Strategy',        value: 'Blue/Green',                                                                                      color: 'var(--text-primary)' },
           ].map(item => (
             <div key={item.label}>
               <div className="mb-0.5" style={{ color: 'var(--text-muted)' }}>{item.label}</div>

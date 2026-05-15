@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import make_asgi_app
 
 from bcl.routers import fleet, queues, channels, migration, validation, audit, topology, logs, sentinel, topology_upload
+from backend.migration_workspace.routes.workspace_router import router as migration_workspace_router
 from bcl.observability.logging import configure_logging
 from bcl.observability.metrics import REQUEST_LATENCY, REQUEST_COUNT
 from bcl.mq.registry import bootstrap_registry
@@ -108,6 +109,7 @@ app.include_router(migration.router, prefix="/api")
 app.include_router(validation.router, prefix="/api")
 app.include_router(audit.router, prefix="/api")
 app.include_router(logs.router, prefix="/api")
+app.include_router(migration_workspace_router)
 
 
 @app.get("/healthz/live")
