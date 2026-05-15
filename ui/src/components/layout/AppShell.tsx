@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Network, Layers, ShieldCheck, ScrollText, Presentation, Terminal, Zap, Sparkles, CirclePlay as PlayCircle, RotateCcw, Cpu, Swords } from 'lucide-react';
+import { LayoutDashboard, Network, Layers, ShieldCheck, ScrollText, Presentation, Terminal, Zap, Sparkles, CirclePlay as PlayCircle, RotateCcw, Cpu, Swords, MonitorPlay } from 'lucide-react';
 import TopBar from './TopBar';
 import FleetStatusMini from './FleetStatusMini';
 import FloatingAssistant from '../shared/FloatingAssistant';
@@ -7,23 +7,28 @@ import { useAssistantAgent } from '../../hooks/useAssistantAgent';
 import { useAppStore } from '../../store/appStore';
 
 const NAV = [
-  { to: '/dashboard',              icon: LayoutDashboard, label: 'Dashboard'        },
-  { to: '/topology',               icon: Network,         label: 'Topology'         },
-  { to: '/migration',              icon: Layers,          label: 'Migration'        },
-  { to: '/migration-plan',         icon: Sparkles,        label: 'Migration Plan'   },
-  { to: '/migration-simulation',   icon: Swords,          label: 'Simulation'       },
-  { to: '/migration-execution',    icon: PlayCircle,      label: 'Execution'        },
-  { to: '/rollback-state',         icon: RotateCcw,       label: 'Rollback State'   },
-  { to: '/autonomous',             icon: Cpu,             label: 'Autonomous Mode'  },
-  { to: '/validation',             icon: ShieldCheck,     label: 'Validation'       },
-  { to: '/logs',                   icon: Terminal,        label: 'Logs'             },
-  { to: '/audit',                  icon: ScrollText,      label: 'Audit Log'        },
-  { to: '/demo',                   icon: Presentation,    label: 'Demo'             },
+  { to: '/dashboard',              icon: LayoutDashboard, label: 'Dashboard'           },
+  { to: '/migration-workspace',    icon: MonitorPlay,     label: 'Migration Workspace' },
+  { to: '/topology',               icon: Network,         label: 'Topology'            },
+  { to: '/migration',              icon: Layers,          label: 'Migration'           },
+  { to: '/migration-plan',         icon: Sparkles,        label: 'Migration Plan'      },
+  { to: '/migration-simulation',   icon: Swords,          label: 'Simulation'          },
+  { to: '/migration-execution',    icon: PlayCircle,      label: 'Execution'           },
+  { to: '/rollback-state',         icon: RotateCcw,       label: 'Rollback State'      },
+  { to: '/autonomous',             icon: Cpu,             label: 'Autonomous Mode'     },
+  { to: '/validation',             icon: ShieldCheck,     label: 'Validation'          },
+  { to: '/logs',                   icon: Terminal,        label: 'Logs'                },
+  { to: '/audit',                  icon: ScrollText,      label: 'Audit Log'           },
+  { to: '/demo',                   icon: Presentation,    label: 'Demo'                },
 ];
 
 export default function AppShell() {
   const location = useLocation();
-  const activeLabel = NAV.find((n) => location.pathname.startsWith(n.to))?.label ?? 'Dashboard';
+  const workspaceSubRoutes = ['/migration/source-validation', '/migration/config-redeploy', '/migration/target-validation', '/migration/summary'];
+  const isWorkspaceSub = workspaceSubRoutes.some(r => location.pathname.startsWith(r));
+  const activeLabel = isWorkspaceSub
+    ? 'Migration Workspace'
+    : NAV.find((n) => location.pathname.startsWith(n.to))?.label ?? 'Dashboard';
   const { messages, handleCommand, isProcessing } = useAssistantAgent();
   useAppStore((s) => s.theme); // subscribe so re-render happens on theme change
 
@@ -67,7 +72,9 @@ export default function AppShell() {
         {/* Nav */}
         <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto pb-2">
           {NAV.map(({ to, icon: Icon, label }, idx) => {
-            const isActive = location.pathname.startsWith(to);
+            const isActive = to === '/migration-workspace'
+              ? location.pathname.startsWith('/migration-workspace') || isWorkspaceSub
+              : location.pathname.startsWith(to);
             return (
               <NavLink
                 key={to}

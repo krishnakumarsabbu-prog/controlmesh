@@ -12,6 +12,11 @@ import MigrationExecutionPage from './pages/MigrationExecutionPage';
 import RollbackStatePage from './pages/RollbackStatePage';
 import AutonomousModePage from './pages/AutonomousModePage';
 import MigrationSimulationPage from './pages/MigrationSimulationPage';
+import MigrationWorkspace from './modules/migration-workspace/pages/MigrationWorkspace';
+import SourceValidation from './modules/migration-workspace/pages/SourceValidation';
+import ConfigRedeploy from './modules/migration-workspace/pages/ConfigRedeploy';
+import TargetValidation from './modules/migration-workspace/pages/TargetValidation';
+import MigrationSummary from './modules/migration-workspace/pages/MigrationSummary';
 
 export default function App() {
   return (
@@ -30,6 +35,12 @@ export default function App() {
         <Route path="logs" element={<LogsPage />} />
         <Route path="audit" element={<AuditPage />} />
         <Route path="demo" element={<DemoPage />} />
+        {/* ── Migration Workspace module ── */}
+        <Route path="migration-workspace" element={<MigrationWorkspace />} />
+        <Route path="migration/source-validation" element={<SourceValidation />} />
+        <Route path="migration/config-redeploy" element={<ConfigRedeploy />} />
+        <Route path="migration/target-validation" element={<TargetValidation />} />
+        <Route path="migration/summary" element={<MigrationSummary />} />
       </Route>
     </Routes>
   );
