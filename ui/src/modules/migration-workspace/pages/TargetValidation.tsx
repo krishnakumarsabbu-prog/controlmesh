@@ -1,11 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import {
-  ArrowRight, ArrowRightLeft, ShieldCheck, TrendingUp, AlertTriangle,
-  RotateCcw, CheckCircle2, XCircle, Activity, Layers, Radio, Zap,
-  Users, Terminal, ChevronRight, GitBranch,
-} from 'lucide-react';
+import { ArrowRight, ArrowRightLeft, ShieldCheck, TrendingUp, TriangleAlert as AlertTriangle, RotateCcw, CircleCheck as CheckCircle2, Circle as XCircle, Activity, Layers, Radio, Zap, Users, Terminal, ChevronRight, GitBranch } from 'lucide-react';
 import MigrationHeader from '../components/MigrationHeader';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { format } from 'date-fns';
@@ -1103,6 +1099,3 @@ export default function TargetValidation() {
     </div>
   );
 }
-
-
-export default TargetValidation
